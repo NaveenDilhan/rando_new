@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'screens/home_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/explore_screen.dart';
 import 'screens/profile_screen.dart';
 import 'widgets/bottom_nav.dart';
+import 'firebase_options.dart';  // Import the generated Firebase options
 
-void main() {
+void main() async {
+  // Ensure Firebase is initialized before the app starts
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform, // Automatically generated options from flutterfire configure
+  );
   runApp(const MyApp());
 }
 
