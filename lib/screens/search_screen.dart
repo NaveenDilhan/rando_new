@@ -11,11 +11,12 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _result = "";
+  String selectedCategory = "Gaming"; // Default category
 
   void _searchTask() async {
     if (_searchController.text.isEmpty) return;
 
-    String response = await OpenAIService().generateTask();
+    String response = await OpenAIService().generateTask(selectedCategory);
     setState(() {
       _result = response;
     });
@@ -29,6 +30,22 @@ class _SearchScreenState extends State<SearchScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            DropdownButton<String>(
+              value: selectedCategory,
+              onChanged: (String? newValue) {
+                setState(() {
+                  selectedCategory = newValue!;
+                });
+              },
+              items: <String>['Gaming', 'Swimming', 'Coding', 'Web Designing', 'Music', 'Art']
+                  .map<DropdownMenuItem<String>>((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
             TextField(
               controller: _searchController,
               decoration: InputDecoration(

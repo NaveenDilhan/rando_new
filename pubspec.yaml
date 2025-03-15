@@ -17,6 +17,8 @@ dependencies:
   google_fonts: ^6.2.1  # To enhance UI with custom fonts
   flutter_svg: ^2.0.10  # For high-quality vector icons
   cupertino_icons: ^1.0.8  # iOS-style icons
+  firebase_core: ^3.12.1
+  carousel_slider: ^4.0.0
 
 dev_dependencies:
   flutter_test:
