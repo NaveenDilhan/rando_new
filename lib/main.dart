@@ -8,6 +8,7 @@ import 'screens/notification_screen.dart'; // Import the NotificationScreen
 import 'screens/profile_screen.dart';
 import 'widgets/bottom_nav.dart';
 import 'firebase_options.dart'; // Import the generated Firebase options
+import 'theme_notifier.dart';
 
 void main() async {
   // Ensure Firebase is initialized before the app starts
@@ -63,21 +64,22 @@ void main() async {
     print('Error initializing Firebase: $e');
   }
 
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Task & Fun Fact Generator',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const MainScreen(),
+    return ValueListenableBuilder<ThemeData>(
+      valueListenable: ThemeNotifier(),
+      builder: (context, theme, child) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Task & Fun Fact Generator',
+          theme: theme,
+          home: const MainScreen(),
+        );
+      },
     );
   }
 }
