@@ -11,39 +11,36 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
-  List<Map<String, dynamic>> categories = []; // List of categories with name and imageUrl
-  List<Map<String, dynamic>> filteredCategories = []; // Filtered categories
-  bool isLoading = true;
-  TextEditingController _searchController = TextEditingController();
+  List<String> categories = []; // List of all categories
+  List<String> filteredCategories = []; // List for filtered categories based on search input
+  bool isLoading = true; // To show a loading indicator until data is fetched
+  TextEditingController _searchController = TextEditingController(); // Controller for search bar
 
   @override
   void initState() {
     super.initState();
-    _fetchCategories();
-    _searchController.addListener(_filterCategories);
+    _fetchCategories(); // Fetch categories from Firestore when the screen is initialized
+    _searchController.addListener(_filterCategories); // Add listener to search input
   }
 
-  // Fetch categories from Firestore
+  // Function to fetch categories from Firestore
   Future<void> _fetchCategories() async {
     try {
       print('Fetching categories from Firestore...');
+      // Fetch categories collection from Firestore
       QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('categories').get();
-
+      
+      // Check if data is returned
       if (snapshot.docs.isNotEmpty) {
-        categories = snapshot.docs.map((doc) {
-          return {
-            'name': doc['name'],
-            'imageUrl': doc['imageUrl'], // Fetching image URL from Firestore
-          };
-        }).toList();
-        filteredCategories = List.from(categories);
-        print('Categories fetched: $categories');
+        categories = snapshot.docs.map((doc) => doc['name'] as String).toList();
+        filteredCategories = List.from(categories); // Initially, show all categories
+        print('Categories fetched: $categories'); // Debugging print statement
       } else {
         print('No categories found in Firestore');
       }
 
       setState(() {
-        isLoading = false;
+        isLoading = false; // Set loading to false after data is fetched
       });
     } catch (e) {
       print('Error fetching categories: $e');
@@ -53,21 +50,20 @@ class _ExploreScreenState extends State<ExploreScreen> {
     }
   }
 
-  // Filter categories based on search query
+  // Function to filter categories based on search query
   void _filterCategories() {
     String query = _searchController.text.toLowerCase();
     setState(() {
       filteredCategories = categories
-          .where((category) => category['name'].toLowerCase().contains(query))
+          .where((category) => category.toLowerCase().contains(query))
           .toList();
     });
   }
 
-  // Function to generate tasks and fun facts
   void _generateFunFactAndTasks(String category) async {
     try {
       print('Generating task for category: $category');
-      String response = await OpenAIService().generateTask(category);
+      String response = await OpenAIService().generateTask(category); // Pass the category
       print('Received response from OpenAI: $response');
       
       if (response.isEmpty) {
@@ -77,7 +73,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => TaskScreen(fact: response, category: category),
+          builder: (context) => TaskScreen(fact: response, category: category), // Pass the fact and category to TaskScreen
         ),
       );
     } catch (e) {
@@ -98,7 +94,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: isLoading
-              ? const CircularProgressIndicator()
+              ? const CircularProgressIndicator() // Show a loading indicator while fetching data
               : Column(
                   children: [
                     // Search Bar
@@ -120,37 +116,36 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     SizedBox(
                       height: 250, // Height for the carousel
                       child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
+                        scrollDirection: Axis.horizontal, // Horizontal scrolling
                         itemCount: filteredCategories.length,
                         itemBuilder: (context, index) {
-                          var category = filteredCategories[index];
-                          String categoryName = category['name'];
-                          String imageUrl = category['imageUrl'] ?? ''; // Default to empty if no image URL
-
+                          print('Building category card for: ${filteredCategories[index]}');
                           return GestureDetector(
-                            onTap: () => _generateFunFactAndTasks(categoryName),
+                            onTap: () => _generateFunFactAndTasks(filteredCategories[index]),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 10.0),
                               child: Card(
-                                elevation: 8,
+                                elevation: 8, // Card elevation for a modern look
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15.0),
+                                  borderRadius: BorderRadius.circular(15.0), // Rounded corners for card
                                 ),
                                 color: Colors.blueAccent,
                                 child: Container(
                                   width: 180, // Fixed width for the cards
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    image: DecorationImage(
-                                      image: NetworkImage(imageUrl),
-                                      fit: BoxFit.cover, // Make the image cover the entire card
-                                      colorFilter: ColorFilter.mode(
-                                          Colors.black.withOpacity(0.4), BlendMode.darken), // Overlay for readability
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.blueAccent.withOpacity(0.7),
+                                        Colors.blue.withOpacity(0.6),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
                                     ),
                                     borderRadius: BorderRadius.circular(15.0),
                                   ),
                                   child: Text(
-                                    categoryName,
+                                    filteredCategories[index],
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 22,
@@ -166,7 +161,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 30), // Space between carousel and other content
                     const Text(
                       'Choose a category to explore and generate daily tasks!',
                       style: TextStyle(
