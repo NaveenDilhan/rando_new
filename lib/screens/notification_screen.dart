@@ -1,7 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
-class NotificationScreen extends StatelessWidget {
+class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
+
+  @override
+  _NotificationScreenState createState() => _NotificationScreenState();
+}
+
+class _NotificationScreenState extends State<NotificationScreen> {
+  String notificationTitle = "No New Notifications";
+  String notificationBody = "Check back later for updates.";
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Listen for foreground notifications
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (message.notification != null) {
+        setState(() {
+          notificationTitle = message.notification!.title ?? "New Notification";
+          notificationBody = message.notification!.body ?? "You have a new message.";
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,17 +37,19 @@ class NotificationScreen extends StatelessWidget {
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.notifications, size: 100, color: Colors.blue),
-            SizedBox(height: 20),
+          children: [
+            const Icon(Icons.notifications, size: 100, color: Colors.blue),
+            const SizedBox(height: 20),
             Text(
-              'You have no new notifications.',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              notificationTitle,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 10),
             Text(
-              'Check back later for updates.',
-              style: TextStyle(fontSize: 16),
+              notificationBody,
+              style: const TextStyle(fontSize: 16),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
