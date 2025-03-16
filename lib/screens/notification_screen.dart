@@ -7,24 +7,15 @@ class NotificationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
-        centerTitle: true,
+        title: const Text("Notifications"),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.notifications, size: 100, color: Colors.blue),
-            SizedBox(height: 20),
-            Text(
-              'You have no new notifications.',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 20),
-            Text(
-              'Check back later for updates.',
-              style: TextStyle(fontSize: 16),
-            ),
+          children: [
+            Text("You have new notifications!", style: Theme.of(context).textTheme.displayLarge),
+            const SizedBox(height: 10),
+            Text("Check them out below.", style: Theme.of(context).textTheme.bodyLarge),
           ],
         ),
       ),

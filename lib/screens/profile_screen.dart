@@ -16,12 +16,9 @@ class ProfileScreen extends StatelessWidget {
               backgroundImage: AssetImage("assets/profile_placeholder.jpeg"),
             ),
             const SizedBox(height: 10),
-            const Text(
-              "User Name",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            Text("User Profile", style: Theme.of(context).textTheme.displayLarge),
             const SizedBox(height: 5),
-            const Text("username@example.com"),
+            Text("username@example.com", style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {

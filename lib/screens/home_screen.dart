@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/openai_service.dart';
+// import '../services/openai_service.dart';
 import 'profile_screen.dart'; // Import the profile screen
 import 'dart:math';// For random motivational quotes
 import 'settings_screen.dart'; // Import the settings screen
@@ -83,19 +83,12 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               _getGreeting(), // Dynamic greeting message
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 26, // Increased font size
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 5),
-            const Text(
+            Text(
               "Welcome back! Ready to achieve your goals?",
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 18, // Increased font size for the description
-              ),
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 20),
             Container(
@@ -110,32 +103,20 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   Text(
                     _getMotivationalQuote(), // Random motivational quote
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18, // Increased font size for quote
-                      fontStyle: FontStyle.italic,
-                    ),
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     "🔥 You have completed 3 tasks today!",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18, // Increased font size for the task message
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 30),
-            const Text(
+            Text(
               "Skill Categories",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 26, // Increased font size for the title
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 10),
             // Skill Categories Section (Scrollable)
@@ -154,13 +135,9 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 30),
-            const Text(
+            Text(
               "Today's Personalized Challenges",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 26, // Increased font size for section title
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 10),
             // Daily Task & AI Recommendation Section
@@ -172,13 +149,9 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 30),
-            const Text(
+            Text(
               "Habit Tracker / Streaks",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 26, // Increased font size for the title
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 10),
             // Habit Tracker Section with Calendar View and Streaks
@@ -197,34 +170,23 @@ class HomeScreen extends StatelessWidget {
                     size: 50,
                   ),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     "You're on a 5-day streak!",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     "Keep it up! You're doing amazing!",
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                    ),
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 30),
             // Gamification & Rewards Section
-            const Text(
+            Text(
               "Gamification & Rewards",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 10),
             Container(
@@ -236,29 +198,19 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     "XP Points Earned: 120",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     "Badges Earned: Code Master, Fitness Guru, Dance Enthusiast",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     "Leaderboard: You are ranked #4 in the global leaderboard!",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 10),
                   ElevatedButton(
@@ -306,11 +258,7 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
           ],
         ),
@@ -335,19 +283,12 @@ class HomeScreen extends StatelessWidget {
             children: [
               Text(
                 taskDescription,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 5),
-              const Text(
+              Text(
                 "Progress: In Progress", // You can update this dynamically
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
             ],
           ),
