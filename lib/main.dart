@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore to check connectivity
@@ -17,7 +18,34 @@ void main() async {
     );
     // Add a debug message once Firebase is initialized
     print('Firebase initialized successfully!');
-    
+
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+    print('FCM Token: $fcmToken');
+
+    // Request notification permissions
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      print('Push notifications permission granted.');
+    } else {
+      print('Push notifications permission denied.');
+    }
+
+    // Handle foreground notifications
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("Foreground message received: ${message.notification?.title}");
+    });
+
+    // Handle background notification tap
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print("Notification opened from background: ${message.notification?.title}");
+    });
+
     // Check Firestore connection by fetching a test document or collection
     var testConnection = await FirebaseFirestore.instance.collection('test').limit(1).get();
     if (testConnection.docs.isNotEmpty) {
