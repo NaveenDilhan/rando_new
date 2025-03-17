@@ -101,6 +101,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
               ? const CircularProgressIndicator()
               : Column(
                   children: [
+                    Text("Explore New Features!", style: Theme.of(context).textTheme.displayLarge),
+                    const SizedBox(height: 10),
+                    Text("Discover what's possible.", style: Theme.of(context).textTheme.bodyLarge),
                     // Search Bar
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),

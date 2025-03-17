@@ -78,6 +78,28 @@ class SettingsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
+            const SizedBox(height: 20),
+            // Font Size Selector
+            const Text(
+              "Font Size",
+              style: TextStyle(color: Colors.white),
+            ),
+            DropdownButton<double>(
+              value: ThemeNotifier().fontSize, // Use the public getter for font size
+              items: const [
+                DropdownMenuItem(value: 14.0, child: Text("14", style: TextStyle(color: Colors.black))),
+                DropdownMenuItem(value: 16.0, child: Text("16", style: TextStyle(color: Colors.black))),
+                DropdownMenuItem(value: 18.0, child: Text("18", style: TextStyle(color: Colors.black))),
+                DropdownMenuItem(value: 20.0, child: Text("20", style: TextStyle(color: Colors.black))),
+              ],
+              onChanged: (double? newValue) {
+                if (newValue != null) {
+                  ThemeNotifier().setFontSize(newValue); // Update font size
+                }
+              },
+              dropdownColor: const Color(0xFF2A2A2A), // Dropdown background color
+              style: const TextStyle(color: Colors.white), // Dropdown text color
+            ),
           ],
         ),
       ),
