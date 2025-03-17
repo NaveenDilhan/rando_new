@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 // import '../services/openai_service.dart';
 import 'profile_screen.dart'; // Import the profile screen
-import 'dart:math';// For random motivational quotes
+import 'dart:math'; // For random motivational quotes
 import 'settings_screen.dart'; // Import the settings screen
 
 class HomeScreen extends StatelessWidget {
@@ -63,7 +63,8 @@ class HomeScreen extends StatelessWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white), // Settings icon
+            icon: const Icon(Icons.settings,
+                color: Colors.white), // Settings icon
             onPressed: () {
               // Navigate to Settings Page
               Navigator.push(
@@ -75,7 +76,8 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       backgroundColor: const Color(0xFF000000), // Black background
-      body: SingleChildScrollView( // Make the body scrollable
+      body: SingleChildScrollView(
+        // Make the body scrollable
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,7 +122,7 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             // Skill Categories Section (Scrollable)
-            Container(
+            SizedBox(
               height: 150, // Set height for scrollable section
               child: ListView(
                 scrollDirection: Axis.horizontal,
@@ -217,11 +219,12 @@ class HomeScreen extends StatelessWidget {
                     onPressed: () {
                       // TODO: Handle achievements
                     },
-                    child: const Text("View Achievements"),
                     style: ElevatedButton.styleFrom(
                       foregroundColor: Colors.white,
-                      backgroundColor: const Color(0xFF0099FF), // Blue background
+                      backgroundColor:
+                          const Color(0xFF0099FF), // Blue background
                     ),
+                    child: const Text("View Achievements"),
                   ),
                 ],
               ),
@@ -233,7 +236,8 @@ class HomeScreen extends StatelessWidget {
   }
 
   // Function to build skill category icons with labels
-  Widget _buildSkillCategory(BuildContext context, IconData icon, String label) {
+  Widget _buildSkillCategory(
+      BuildContext context, IconData icon, String label) {
     return GestureDetector(
       onTap: () {
         // Handle navigation to respective skill module (not implemented here)
@@ -244,7 +248,8 @@ class HomeScreen extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 10),
         width: 100,
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A), // Dark background for skill categories
+          color:
+              const Color(0xFF1A1A1A), // Dark background for skill categories
           borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
@@ -295,7 +300,8 @@ class HomeScreen extends StatelessWidget {
           Column(
             children: [
               Checkbox(
-                value: false, // This should be tied to the task completion state
+                value:
+                    false, // This should be tied to the task completion state
                 onChanged: (bool? value) {
                   // Update task completion state
                 },
@@ -307,10 +313,11 @@ class HomeScreen extends StatelessWidget {
                 onPressed: () {
                   // TODO: Handle "Start Task" action
                 },
-                child: const Text("Start Task"),
                 style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white, backgroundColor: const Color(0xFF0099FF),
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xFF0099FF),
                 ),
+                child: const Text("Start Task"),
               ),
             ],
           ),

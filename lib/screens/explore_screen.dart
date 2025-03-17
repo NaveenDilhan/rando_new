@@ -11,10 +11,11 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
-  List<Map<String, dynamic>> categories = []; // List of categories with name and imageUrl
+  List<Map<String, dynamic>> categories =
+      []; // List of categories with name and imageUrl
   List<Map<String, dynamic>> filteredCategories = []; // Filtered categories
   bool isLoading = true;
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -27,7 +28,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Future<void> _fetchCategories() async {
     try {
       print('Fetching categories from Firestore...');
-      QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('categories').get();
+      QuerySnapshot snapshot =
+          await FirebaseFirestore.instance.collection('categories').get();
 
       if (snapshot.docs.isNotEmpty) {
         categories = snapshot.docs.map((doc) {
@@ -69,7 +71,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       print('Generating task for category: $category');
       String response = await OpenAIService().generateTask(category);
       print('Received response from OpenAI: $response');
-      
+
       if (response.isEmpty) {
         print('Received empty response from OpenAI');
       }
@@ -101,9 +103,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
               ? const CircularProgressIndicator()
               : Column(
                   children: [
-                    Text("Explore New Features!", style: Theme.of(context).textTheme.displayLarge),
+                    Text("Explore New Features!",
+                        style: Theme.of(context).textTheme.displayLarge),
                     const SizedBox(height: 10),
-                    Text("Discover what's possible.", style: Theme.of(context).textTheme.bodyLarge),
+                    Text("Discover what's possible.",
+                        style: Theme.of(context).textTheme.bodyLarge),
                     // Search Bar
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
@@ -128,12 +132,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         itemBuilder: (context, index) {
                           var category = filteredCategories[index];
                           String categoryName = category['name'];
-                          String imageUrl = category['imageUrl'] ?? ''; // Default to empty if no image URL
+                          String imageUrl = category['imageUrl'] ??
+                              ''; // Default to empty if no image URL
 
                           return GestureDetector(
                             onTap: () => _generateFunFactAndTasks(categoryName),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10.0),
                               child: Card(
                                 elevation: 8,
                                 shape: RoundedRectangleBorder(
@@ -146,9 +152,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                   decoration: BoxDecoration(
                                     image: DecorationImage(
                                       image: NetworkImage(imageUrl),
-                                      fit: BoxFit.cover, // Make the image cover the entire card
+                                      fit: BoxFit
+                                          .cover, // Make the image cover the entire card
                                       colorFilter: ColorFilter.mode(
-                                          Colors.black.withOpacity(0.4), BlendMode.darken), // Overlay for readability
+                                          Colors.black.withOpacity(0.4),
+                                          BlendMode
+                                              .darken), // Overlay for readability
                                     ),
                                     borderRadius: BorderRadius.circular(15.0),
                                   ),
