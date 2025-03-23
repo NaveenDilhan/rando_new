@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../services/openai_service.dart';
-import 'task_screen.dart'; // Import the TaskScreen
+import 'task_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -11,23 +12,26 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
-  List<Map<String, dynamic>> categories =
-      []; // List of categories with name and imageUrl
-  List<Map<String, dynamic>> filteredCategories = []; // Filtered categories
+  late final TextEditingController _searchController;
+  List<Map<String, dynamic>> categories = [];
+  List<Map<String, dynamic>> filteredCategories = [];
   bool isLoading = true;
-  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController()..addListener(_filterCategories);
     _fetchCategories();
-    _searchController.addListener(_filterCategories);
   }
 
-  // Fetch categories from Firestore
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchCategories() async {
     try {
-      print('Fetching categories from Firestore...');
       QuerySnapshot snapshot =
           await FirebaseFirestore.instance.collection('categories').get();
 
@@ -35,27 +39,20 @@ class _ExploreScreenState extends State<ExploreScreen> {
         categories = snapshot.docs.map((doc) {
           return {
             'name': doc['name'],
-            'imageUrl': doc['imageUrl'], // Fetching image URL from Firestore
+            'imageUrl': doc['imageUrl'] ?? '',
           };
         }).toList();
         filteredCategories = List.from(categories);
-        print('Categories fetched: $categories');
-      } else {
-        print('No categories found in Firestore');
       }
-
-      setState(() {
-        isLoading = false;
-      });
     } catch (e) {
-      print('Error fetching categories: $e');
-      setState(() {
-        isLoading = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching categories: $e')),
+      );
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
-  // Filter categories based on search query
   void _filterCategories() {
     String query = _searchController.text.toLowerCase();
     setState(() {
@@ -65,25 +62,25 @@ class _ExploreScreenState extends State<ExploreScreen> {
     });
   }
 
-  // Function to generate tasks and fun facts
   void _generateFunFactAndTasks(String category) async {
     try {
-      print('Generating task for category: $category');
-      String response = await OpenAIService().generateTask(category);
-      print('Received response from OpenAI: $response');
-
-      if (response.isEmpty) {
-        print('Received empty response from OpenAI');
+      Map<String, dynamic> response = await OpenAIService().generateTasks(category);
+      if (response.containsKey('error')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response['error'])),
+        );
+        return;
       }
-
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => TaskScreen(fact: response, category: category),
+          builder: (context) => TaskScreen(category: category),
         ),
       );
     } catch (e) {
-      print('Error generating task: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error generating tasks: $e')),
+      );
     }
   }
 
@@ -93,103 +90,115 @@ class _ExploreScreenState extends State<ExploreScreen> {
       appBar: AppBar(
         title: const Text("Explore"),
         centerTitle: true,
-        elevation: 4,
         backgroundColor: Colors.deepPurpleAccent,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: isLoading
-              ? const CircularProgressIndicator()
-              : Column(
-                  children: [
-                    Text("Explore New Features!",
-                        style: Theme.of(context).textTheme.displayLarge),
-                    const SizedBox(height: 10),
-                    Text("Discover what's possible.",
-                        style: Theme.of(context).textTheme.bodyLarge),
-                    // Search Bar
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          labelText: 'Search Categories',
-                          hintText: 'Enter category name',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10.0),
-                          ),
-                          prefixIcon: const Icon(Icons.search),
-                        ),
-                      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Search Categories',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                prefixIcon: const Icon(Icons.search),
+              ),
+            ),
+            const SizedBox(height: 16),
+            isLoading
+                ? Expanded(
+                    child: Center(
+                      child: CircularProgressIndicator(),
                     ),
-                    // Category Carousel
-                    SizedBox(
-                      height: 250, // Height for the carousel
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: filteredCategories.length,
-                        itemBuilder: (context, index) {
-                          var category = filteredCategories[index];
-                          String categoryName = category['name'];
-                          String imageUrl = category['imageUrl'] ??
-                              ''; // Default to empty if no image URL
-
-                          return GestureDetector(
-                            onTap: () => _generateFunFactAndTasks(categoryName),
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10.0),
-                              child: Card(
-                                elevation: 8,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15.0),
-                                ),
-                                color: Colors.blueAccent,
-                                child: Container(
-                                  width: 180, // Fixed width for the cards
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    image: DecorationImage(
-                                      image: NetworkImage(imageUrl),
-                                      fit: BoxFit
-                                          .cover, // Make the image cover the entire card
-                                      colorFilter: ColorFilter.mode(
-                                          Colors.black.withOpacity(0.4),
-                                          BlendMode
-                                              .darken), // Overlay for readability
-                                    ),
+                  )
+                : filteredCategories.isEmpty
+                    ? const Expanded(
+                        child: Center(
+                          child: Text(
+                            'No categories found',
+                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                          ),
+                        ),
+                      )
+                    : Flexible(
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: filteredCategories.length,
+                          itemBuilder: (context, index) {
+                            var category = filteredCategories[index];
+                            return GestureDetector(
+                              onTap: () => _generateFunFactAndTasks(category['name']),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                                child: Card(
+                                  elevation: 8,
+                                  shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(15.0),
                                   ),
-                                  child: Text(
-                                    categoryName,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.5,
+                                  color: Colors.blueAccent,
+                                  child: Container(
+                                    width: 180,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(15.0),
                                     ),
-                                    textAlign: TextAlign.center,
+                                    child: Stack(
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(15.0),
+                                          child: CachedNetworkImage(
+                                            imageUrl: category['imageUrl'],
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            placeholder: (context, url) =>
+                                                Container(color: Colors.grey.shade300),
+                                            errorWidget: (context, url, error) =>
+                                                const Icon(Icons.error, color: Colors.red),
+                                          ),
+                                        ),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.4),
+                                            borderRadius: BorderRadius.circular(15.0),
+                                          ),
+                                          child: Center(
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(8.0),
+                                              child: Text(
+                                                category['name'],
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 30),
-                    const Text(
-                      'Choose a category to explore and generate daily tasks!',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.grey,
-                        fontStyle: FontStyle.italic,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 20),
+            const Text(
+              'Choose a category to explore and generate daily tasks!',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
