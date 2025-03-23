@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'daily_tasks_screen.dart'; 
-import 'habits_screen.dart'; 
-import 'achievements_screen.dart'; 
+import 'daily_tasks_screen.dart';
+import 'habits_screen.dart';
+import 'achievements_screen.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:lottie/lottie.dart';
+import '../services/openai_service.dart'; 
+import 'task_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -73,6 +75,28 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _generateFunFactAndTasks(String category) async {
+    try {
+      Map<String, dynamic> response = await OpenAIService().generateTasks(category);
+      if (response.containsKey('error')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response['error'])),
+        );
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TaskScreen(category: category),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error generating tasks: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         FadeInUp(
           duration: const Duration(seconds: 1),
-          child: Text(greetingMessage, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
+          child: Text(greetingMessage, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 5),
         FadeInUp(
@@ -147,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(motivationalQuote, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white)),
+            Text(motivationalQuote, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white, fontStyle: FontStyle.italic)),
             const SizedBox(height: 10),
             Text("🔥 You have completed 3 tasks today!",
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.orangeAccent)),
@@ -158,7 +182,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white));
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+    );
   }
 
   Widget _buildSkillCategories() {
@@ -177,7 +204,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       child: FadeInLeft(
                         duration: const Duration(seconds: 1),
-                        child: _SkillCategoryCard(category),
+                        child: GestureDetector(
+                          onTap: () => _generateFunFactAndTasks(category['name']),
+                          child: _SkillCategoryCard(category),
+                        ),
                       ),
                     );
                   },
@@ -196,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Positioned.fill(
           child: Lottie.asset(
-            'assets/animations/challenge_background.json',  // Ensure the Lottie animation exists
+            'assets/animations/challenge_background.json', // Ensure the Lottie animation exists
             fit: BoxFit.cover,
             repeat: true,
             animate: true,
@@ -291,6 +321,7 @@ class _SkillCategoryCard extends StatelessWidget {
               category['name'],
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
               textAlign: TextAlign.center,
             ),
