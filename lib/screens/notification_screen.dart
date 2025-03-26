@@ -8,6 +8,7 @@ class NotificationScreen extends StatefulWidget {
   _NotificationScreenState createState() => _NotificationScreenState();
 }
 
+
 class _NotificationScreenState extends State<NotificationScreen> {
   String notificationTitle = "No New Notifications";
   String notificationBody = "Check back later for updates.";
