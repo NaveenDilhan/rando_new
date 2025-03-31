@@ -1,13 +1,37 @@
 import 'package:flutter/material.dart';
-// import '../services/openai_service.dart';
-import 'profile_screen.dart'; // Import the profile screen
-import 'dart:math'; // For random motivational quotes
-import 'settings_screen.dart'; // Import the settings screen
+import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'daily_tasks_screen.dart';
+import 'habits_screen.dart';
+import 'achievements_screen.dart';
+import 'package:animate_do/animate_do.dart';
+import 'package:lottie/lottie.dart';
+import '../services/openai_service.dart'; 
+import 'task_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  // Function to get a greeting message based on the time of day
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late String greetingMessage;
+  late String motivationalQuote;
+  List<bool> taskCompletion = [false, false, false];
+  List<Map<String, dynamic>> skillCategories = [];
+  bool isLoading = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    greetingMessage = _getGreeting();
+    motivationalQuote = _getMotivationalQuote();
+    _fetchSkillCategories();
+  }
+
   String _getGreeting() {
     int hour = DateTime.now().hour;
     if (hour < 12) {
@@ -19,7 +43,6 @@ class HomeScreen extends StatelessWidget {
     }
   }
 
-  // Function to get a random motivational quote
   String _getMotivationalQuote() {
     List<String> quotes = [
       "Every day is a fresh start!",
@@ -30,296 +53,278 @@ class HomeScreen extends StatelessWidget {
     return quotes[Random().nextInt(quotes.length)];
   }
 
+  Future<void> _fetchSkillCategories() async {
+    try {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('categories').get();
+      if (snapshot.docs.isNotEmpty) {
+        setState(() {
+          skillCategories = snapshot.docs.map((doc) {
+            return {
+              'name': doc['name'],
+              'imageUrl': doc['imageUrl'] ?? '',
+            };
+          }).toList();
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching skill categories: $e')),
+      );
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  void _generateFunFactAndTasks(String category) async {
+    try {
+      Map<String, dynamic> response = await OpenAIService().generateTasks(category);
+      if (response.containsKey('error')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response['error'])),
+        );
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TaskScreen(category: category),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error generating tasks: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF000000), // Black background
-        elevation: 0,
-        title: const Text(
-          "Rando", // App Name
-          style: TextStyle(
-            color: Color(0xFF0099FF), // Blue text
-            fontSize: 26, // Increased font size for the app name
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: false, // App name is left-aligned
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.white),
-            onPressed: () {
-              // TODO: Handle notifications
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.person, color: Colors.white),
-            onPressed: () {
-              // Navigate to Profile Page
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings,
-                color: Colors.white), // Settings icon
-            onPressed: () {
-              // Navigate to Settings Page
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-      backgroundColor: const Color(0xFF000000), // Black background
+      appBar: _buildAppBar(),
+      backgroundColor: const Color(0xFF121212),
       body: SingleChildScrollView(
-        // Make the body scrollable
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildGreetingSection(),
             const SizedBox(height: 20),
-            Text(
-              _getGreeting(), // Dynamic greeting message
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 5),
-            Text(
-              "Welcome back! Ready to achieve your goals?",
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A), // Darker gray background
-                borderRadius: BorderRadius.circular(15), // Rounded corners
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _getMotivationalQuote(), // Random motivational quote
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "🔥 You have completed 3 tasks today!",
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ],
-              ),
-            ),
+            _buildMotivationalCard(),
             const SizedBox(height: 30),
-            Text(
-              "Skill Categories",
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 10),
-            // Skill Categories Section (Scrollable)
-            SizedBox(
-              height: 150, // Set height for scrollable section
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _buildSkillCategory(context, Icons.fitness_center, "Fitness"),
-                  _buildSkillCategory(context, Icons.music_note, "Music"),
-                  _buildSkillCategory(context, Icons.school, "Teaching"),
-                  _buildSkillCategory(context, Icons.sports, "Sports"),
-                  _buildSkillCategory(context, Icons.directions_run, "Dance"),
-                  _buildSkillCategory(context, Icons.code, "Code"),
-                ],
-              ),
-            ),
+            _buildSectionTitle("Recommendations"),
+            _buildSkillCategories(),
             const SizedBox(height: 30),
-            Text(
-              "Today's Personalized Challenges",
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 10),
-            // Daily Task & AI Recommendation Section
-            Column(
-              children: [
-                _buildDailyTask(context, "Practice coding for 30 minutes"),
-                _buildDailyTask(context, "Complete a workout session"),
-                _buildDailyTask(context, "Practice playing your favorite song"),
-              ],
-            ),
+            _buildArtisticDivider(), // Artistic divider between sections
             const SizedBox(height: 30),
-            Text(
-              "Habit Tracker / Streaks",
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 10),
-            // Habit Tracker Section with Calendar View and Streaks
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A), // Darker gray background
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Column(
-                children: [
-                  // Calendar view placeholder (you can use a calendar package for an actual calendar)
-                  const Icon(
-                    Icons.calendar_today,
-                    color: Colors.white,
-                    size: 50,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "You're on a 5-day streak!",
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Keep it up! You're doing amazing!",
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 30),
-            // Gamification & Rewards Section
-            Text(
-              "Gamification & Rewards",
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A), // Darker gray background
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "XP Points Earned: 120",
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Badges Earned: Code Master, Fitness Guru, Dance Enthusiast",
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Leaderboard: You are ranked #4 in the global leaderboard!",
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: () {
-                      // TODO: Handle achievements
-                    },
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor:
-                          const Color(0xFF0099FF), // Blue background
-                    ),
-                    child: const Text("View Achievements"),
-                  ),
-                ],
-              ),
-            ),
+            _buildSectionTitle("Personalized Challenges & More"),
+            _buildChallengesGrid(),
           ],
         ),
       ),
     );
   }
 
-  // Function to build skill category icons with labels
-  Widget _buildSkillCategory(
-      BuildContext context, IconData icon, String label) {
-    return GestureDetector(
-      onTap: () {
-        // Handle navigation to respective skill module (not implemented here)
-        // For example, you can navigate to a new screen:
-        // Navigator.push(context, MaterialPageRoute(builder: (context) => SkillModuleScreen(skill: label)));
-      },
+  AppBar _buildAppBar() {
+    return AppBar(
+      backgroundColor: const Color(0xFF000000),
+      elevation: 0,
+      title: const Text(
+        "Rando",
+        style: TextStyle(
+          color: Color(0xFF00A3FF),
+          fontSize: 26,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGreetingSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FadeInUp(
+          duration: const Duration(seconds: 1),
+          child: Text(greetingMessage, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 5),
+        FadeInUp(
+          duration: const Duration(seconds: 1),
+          child: Text("Welcome back! Ready to achieve your goals?",
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white60)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMotivationalCard() {
+    return SlideInUp(
+      duration: const Duration(seconds: 1),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 10),
-        width: 100,
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color:
-              const Color(0xFF1A1A1A), // Dark background for skill categories
+          color: const Color(0xFF2C2C2C),
           borderRadius: BorderRadius.circular(15),
+          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 4)],
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              icon,
-              color: Colors.white,
-              size: 40,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
+            Text(motivationalQuote, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white, fontStyle: FontStyle.italic)),
+            const SizedBox(height: 10),
+            Text("🔥 You have completed 3 tasks today!",
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.orangeAccent)),
           ],
         ),
       ),
     );
   }
 
-  // Function to build each daily task with completion indicator and CTA button
-  Widget _buildDailyTask(BuildContext context, String taskDescription) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A), // Dark gray background for tasks
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                taskDescription,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 5),
-              Text(
-                "Progress: In Progress", // You can update this dynamically
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ],
-          ),
-          Column(
-            children: [
-              Checkbox(
-                value:
-                    false, // This should be tied to the task completion state
-                onChanged: (bool? value) {
-                  // Update task completion state
-                },
-                checkColor: Colors.white,
-                activeColor: const Color(0xFF0099FF), // Blue
-              ),
-              const SizedBox(height: 5),
-              ElevatedButton(
-                onPressed: () {
-                  // TODO: Handle "Start Task" action
-                },
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: const Color(0xFF0099FF),
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+    );
+  }
+
+  Widget _buildSkillCategories() {
+    return SizedBox(
+      height: 120,
+      child: isLoading
+          ? const _LoadingIndicator()
+          : skillCategories.isEmpty
+              ? const Center(child: Text('No categories found', style: TextStyle(color: Colors.grey)))
+              : ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: skillCategories.length,
+                  itemBuilder: (context, index) {
+                    var category = skillCategories[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: FadeInLeft(
+                        duration: const Duration(seconds: 1),
+                        child: GestureDetector(
+                          onTap: () => _generateFunFactAndTasks(category['name']),
+                          child: _SkillCategoryCard(category),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                child: const Text("Start Task"),
+    );
+  }
+
+  Widget _buildChallengesGrid() {
+    List<Map<String, dynamic>> challenges = [
+      {'icon': Icons.task, 'label': 'Daily Tasks', 'page': DailyTasksScreen()},
+      {'icon': Icons.fitness_center, 'label': 'Habits', 'page': HabitsScreen()},
+      {'icon': Icons.star, 'label': 'Achievements', 'page': AchievementsScreen()},
+    ];
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Lottie.asset(
+            'assets/animations/challenge_background.json', // Ensure the Lottie animation exists
+            fit: BoxFit.cover,
+            repeat: true,
+            animate: true,
+          ),
+        ),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 1,
+          ),
+          itemCount: challenges.length,
+          itemBuilder: (context, index) {
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => challenges[index]['page']),
+                );
+              },
+              child: BounceIn(
+                duration: const Duration(seconds: 1),
+                child: _ChallengeCard(challenges[index]),
               ),
-            ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildArtisticDivider() {
+    return Container(
+      height: 2,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blueAccent, Colors.purpleAccent, Colors.blueAccent],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingIndicator extends StatelessWidget {
+  const _LoadingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: CircularProgressIndicator(color: Colors.white));
+  }
+}
+
+class _SkillCategoryCard extends StatelessWidget {
+  final Map<String, dynamic> category;
+  const _SkillCategoryCard(this.category);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 100,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2C2C2C),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: CachedNetworkImage(
+              imageUrl: category['imageUrl'],
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(color: Colors.grey.shade300),
+              errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
+            ),
+          ),
+          // Darken the background with an overlay
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5), // Darken the background with opacity
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
+          Center(
+            child: Text(
+              category['name'],
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+              textAlign: TextAlign.center,
+            ),
           ),
         ],
       ),
@@ -327,72 +332,26 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// import 'package:flutter/material.dart';
-// import '../services/openai_service.dart';
+class _ChallengeCard extends StatelessWidget {
+  final Map<String, dynamic> challenge;
+  const _ChallengeCard(this.challenge);
 
-// class HomeScreen extends StatefulWidget {
-//   const HomeScreen({super.key});
-
-//   @override
-//   _HomeScreenState createState() => _HomeScreenState();
-// }
-
-// class _HomeScreenState extends State<HomeScreen> {
-//   String selectedCategory = "Gaming"; // Default category
-
-//   void _generateTask() async {
-//     String result = await OpenAIService().generateTask(selectedCategory); // Pass the selected category
-//     showDialog(
-//       context: context,
-//       builder: (context) => AlertDialog(
-//         title: const Text("Generated Task"),
-//         content: Text(result),
-//         actions: [
-//           TextButton(
-//             onPressed: () {
-//               Navigator.of(context).pop();
-//             },
-//             child: const Text("Close"),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(title: const Text("Home")),
-//       body: Center(
-//         child: Padding(
-//           padding: const EdgeInsets.all(16.0),
-//           child: Column(
-//             mainAxisAlignment: MainAxisAlignment.center,
-//             children: [
-//               DropdownButton<String>(
-//                 value: selectedCategory,
-//                 onChanged: (String? newValue) {
-//                   setState(() {
-//                     selectedCategory = newValue!;
-//                   });
-//                 },
-//                 items: <String>['Gaming', 'Swimming', 'Coding', 'Web Designing', 'Music', 'Art']
-//                     .map<DropdownMenuItem<String>>((String value) {
-//                   return DropdownMenuItem<String>(
-//                     value: value,
-//                     child: Text(value),
-//                   );
-//                 }).toList(),
-//               ),
-//               const SizedBox(height: 20),
-//               ElevatedButton(
-//                 onPressed: _generateTask,
-//                 child: const Text("Generate Task"),
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF2C2C2C),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), spreadRadius: 2, blurRadius: 5)],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(challenge['icon'], size: 40, color: Colors.white),
+          const SizedBox(height: 8),
+          Text(challenge['label'], style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white)),
+        ],
+      ),
+    );
+  }
+}

@@ -3,9 +3,9 @@ import 'dart:convert';
 import '../constants/api_keys.dart';
 
 class OpenAIService {
-  Future<String> generateTask(String category) async {
+  Future<Map<String, dynamic>> generateTasks(String category) async {
     const String apiUrl = "https://api.openai.com/v1/chat/completions";
-    const String model = "gpt-3.5-turbo";  // Use GPT-3.5 Turbo model
+      const String model = "gpt-3.5-turbo";
 
     try {
       final response = await http.post(
@@ -17,35 +17,26 @@ class OpenAIService {
         body: jsonEncode({
           "model": model,
           "messages": [
-            {"role": "system", "content": "You are an assistant that generates interesting daily tasks."},
-            {"role": "user", "content": "Give me a random daily task related to $category."}  // Dynamic category input
+            {"role": "system", "content": "You generate 4 daily tasks and 1 fun fact for a given category."},
+            {"role": "user", "content": 
+              "Provide four unique daily tasks and one fun fact related to $category in JSON format like this: "
+              "{ 'tasks': ['Task 1', 'Task 2', 'Task 3', 'Task 4'], 'fact': 'A fun fact here' }."
+            }
           ],
-          "max_tokens": 100,  // Limit the response length
+          "max_tokens": 200,
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['choices'][0]['message']['content'].trim();
+        final content = data['choices'][0]['message']['content'];
+
+        return jsonDecode(content);  // Extracts JSON formatted response
       } else {
-        final errorData = jsonDecode(response.body);
-        String errorMessage = "Error ${response.statusCode}: ${response.reasonPhrase}";
-
-        if (errorData.containsKey('error')) {
-          final errorCode = errorData['error']['code'] ?? "Unknown Code";
-          final errorMessageText = errorData['error']['message'] ?? "No message provided";
-
-          // Check if the error is related to insufficient credit
-          if (errorCode == "insufficient_quota") {
-            return "Error: Insufficient OpenAI quota. Please check your billing and available credits.";
-          } else {
-            return "OpenAI API Error [$errorCode]: $errorMessageText";
-          }
-        }
-        return errorMessage;
+        return {"error": "OpenAI API Error: ${response.statusCode}"};
       }
     } catch (e) {
-      return "Failed to connect to OpenAI API: $e";
+      return {"error": "Failed to connect to OpenAI API: $e"};
     }
   }
 }
