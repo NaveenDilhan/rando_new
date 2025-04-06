@@ -135,7 +135,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     const HomeScreen(),
     const ExploreScreen(),
-    const CreatePostScreen(),  // New Create Post screen
+    CreatePostScreen(),  // New Create Post screen
     const NotificationScreen(),
     const ProfileScreen(),
   ];
