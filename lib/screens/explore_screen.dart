@@ -87,10 +87,27 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Explore"),
-        centerTitle: true,
-        backgroundColor: Colors.deepPurpleAccent,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AppBar(
+          automaticallyImplyLeading: false,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color.fromARGB(255, 0, 163, 255),
+                  Color.fromARGB(255, 0, 123, 200),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          title: const Text("Explore"),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -108,7 +125,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ),
             const SizedBox(height: 16),
             isLoading
-                ? Expanded(
+                ? const Expanded(
                     child: Center(
                       child: CircularProgressIndicator(),
                     ),
@@ -118,7 +135,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         child: Center(
                           child: Text(
                             'No categories found',
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                            style: TextStyle(fontSize: 18, color: Color.fromARGB(255, 158, 158, 158)),
                           ),
                         ),
                       )

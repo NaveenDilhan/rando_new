@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:rando_new/main.dart';
+import 'package:lottie/lottie.dart';
+import 'login_screen.dart';
+import 'register_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -10,79 +11,50 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  bool isLogin = true; // Toggle between login and register mode
-  bool isLoading = false;
-
-  Future<void> _authenticate() async {
-    setState(() => isLoading = true);
-    try {
-      if (isLogin) {
-        // Login logic
-        await _auth.signInWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
-        );
-      } else {
-        // Register logic
-        await _auth.createUserWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
-        );
-      }
-      // Navigate to Home Screen after success
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainScreen()),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
+  bool isLogin = true;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(isLogin ? 'Login' : 'Register')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+      body: Stack(
+        children: [
+          // Lottie Animation covering the whole screen
+          Positioned.fill(
+            child: Lottie.asset(
+              'assets/animations/login_background.json', // Path to your Lottie animation file
+              fit: BoxFit.cover, // This makes the animation cover the whole screen
             ),
-            TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,  // Avoid expanding too much vertically
+                  children: [
+                    Text(
+                      isLogin ? 'Login' : 'Register',
+                      style: Theme.of(context).textTheme.headlineMedium!.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 40),
+                    isLogin ? LoginScreen() : RegisterScreen(),
+                    const SizedBox(height: 15),
+                    TextButton(
+                      onPressed: () => setState(() => isLogin = !isLogin),
+                      child: Text(
+                        isLogin ? 'New user? Register here' : 'Already have an account? Login',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 20),
-            isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: _authenticate,
-                    child: Text(isLogin ? 'Login' : 'Register'),
-                  ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  isLogin = !isLogin; // Toggle between login and register
-                });
-              },
-              child: Text(isLogin
-                  ? 'New user? Register here'
-                  : 'Already have an account? Login'),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

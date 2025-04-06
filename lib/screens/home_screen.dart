@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'daily_tasks_screen.dart';
-import 'habits_screen.dart';
-import 'achievements_screen.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:lottie/lottie.dart';
 import '../services/openai_service.dart'; 
@@ -23,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<bool> taskCompletion = [false, false, false];
   List<Map<String, dynamic>> skillCategories = [];
   bool isLoading = true;
+  List<Map<String, dynamic>> feedItems = [];
 
   @override
   void didChangeDependencies() {
@@ -30,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
     greetingMessage = _getGreeting();
     motivationalQuote = _getMotivationalQuote();
     _fetchSkillCategories();
+    _fetchFeedItems();
   }
 
   String _getGreeting() {
@@ -75,6 +74,27 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _fetchFeedItems() async {
+    try {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('feed').get();
+      if (snapshot.docs.isNotEmpty) {
+        setState(() {
+          feedItems = snapshot.docs.map((doc) {
+            return {
+              'title': doc['title'],
+              'description': doc['description'],
+              'imageUrl': doc['imageUrl'] ?? '',
+            };
+          }).toList();
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching feed items: $e')),
+      );
+    }
+  }
+
   void _generateFunFactAndTasks(String category) async {
     try {
       Map<String, dynamic> response = await OpenAIService().generateTasks(category);
@@ -114,10 +134,10 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildSectionTitle("Recommendations"),
             _buildSkillCategories(),
             const SizedBox(height: 30),
-            _buildArtisticDivider(), // Artistic divider between sections
+            _buildArtisticDivider(),
             const SizedBox(height: 30),
-            _buildSectionTitle("Personalized Challenges & More"),
-            _buildChallengesGrid(),
+            _buildSectionTitle("Feed"), // Feed section added here
+            _buildFeed(), // Feed content
           ],
         ),
       ),
@@ -126,12 +146,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   AppBar _buildAppBar() {
     return AppBar(
-      backgroundColor: const Color(0xFF000000),
+      backgroundColor: const Color.fromRGBO(0, 0, 0, 1),
       elevation: 0,
       title: const Text(
         "Rando",
         style: TextStyle(
-          color: Color(0xFF00A3FF),
+          color: Color.fromARGB(255, 0, 163, 255),
           fontSize: 26,
           fontWeight: FontWeight.bold,
         ),
@@ -215,50 +235,20 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildChallengesGrid() {
-    List<Map<String, dynamic>> challenges = [
-      {'icon': Icons.task, 'label': 'Daily Tasks', 'page': DailyTasksScreen()},
-      {'icon': Icons.fitness_center, 'label': 'Habits', 'page': HabitsScreen()},
-      {'icon': Icons.star, 'label': 'Achievements', 'page': AchievementsScreen()},
-    ];
-
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Lottie.asset(
-            'assets/animations/challenge_background.json', // Ensure the Lottie animation exists
-            fit: BoxFit.cover,
-            repeat: true,
-            animate: true,
-          ),
-        ),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 1,
-          ),
-          itemCount: challenges.length,
-          itemBuilder: (context, index) {
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => challenges[index]['page']),
-                );
-              },
-              child: BounceIn(
-                duration: const Duration(seconds: 1),
-                child: _ChallengeCard(challenges[index]),
-              ),
-            );
-          },
-        ),
-      ],
-    );
+  Widget _buildFeed() {
+    return feedItems.isEmpty
+        ? const _LoadingIndicator()
+        : Column(
+            children: feedItems.map((feed) {
+              return ListTile(
+                title: Text(feed['title'], style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white)),
+                subtitle: Text(feed['description'], style: TextStyle(color: Colors.grey)),
+                tileColor: const Color(0xFF2C2C2C),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.all(12),
+              );
+            }).toList(),
+          );
   }
 
   Widget _buildArtisticDivider() {
@@ -309,10 +299,9 @@ class _SkillCategoryCard extends StatelessWidget {
               errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
             ),
           ),
-          // Darken the background with an overlay
           Container(
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5), // Darken the background with opacity
+              color: Colors.black.withOpacity(0.5),
               borderRadius: BorderRadius.circular(15),
             ),
           ),
@@ -326,30 +315,6 @@ class _SkillCategoryCard extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChallengeCard extends StatelessWidget {
-  final Map<String, dynamic> challenge;
-  const _ChallengeCard(this.challenge);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2C),
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), spreadRadius: 2, blurRadius: 5)],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(challenge['icon'], size: 40, color: Colors.white),
-          const SizedBox(height: 8),
-          Text(challenge['label'], style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white)),
         ],
       ),
     );

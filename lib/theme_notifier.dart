@@ -12,6 +12,10 @@ class ThemeNotifier extends ValueNotifier<ThemeData> {
   // Public getter for font size
   double get fontSize => _fontSize;
 
+  // Getter to check if dark mode is enabled
+  bool get isDarkMode => _isDarkMode;
+
+  // Current theme based on dark mode and font size
   ThemeData get currentTheme {
     return _isDarkMode
         ? ThemeData.dark().copyWith(
@@ -32,13 +36,17 @@ class ThemeNotifier extends ValueNotifier<ThemeData> {
           );
   }
 
+  // Toggle theme between dark and light
   void toggleTheme(bool isDark) {
     _isDarkMode = isDark;
-    value = currentTheme; // Update the value
+    value = currentTheme; // Update the theme value
+    notifyListeners(); // Notify listeners to rebuild the UI
   }
 
+  // Set font size and update the theme
   void setFontSize(double fontSize) {
     _fontSize = fontSize;
-    value = currentTheme; // Update the value
+    value = currentTheme; // Update the theme value
+    notifyListeners(); // Notify listeners to rebuild the UI
   }
-} 
+}
