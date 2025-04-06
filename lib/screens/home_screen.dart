@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
-import '../services/openai_service.dart';
+import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:animate_do/animate_do.dart';
+import 'package:lottie/lottie.dart';
+import '../services/openai_service.dart'; 
+import 'task_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -9,60 +15,307 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String selectedCategory = "Gaming"; // Default category
+  late String greetingMessage;
+  late String motivationalQuote;
+  List<bool> taskCompletion = [false, false, false];
+  List<Map<String, dynamic>> skillCategories = [];
+  bool isLoading = true;
+  List<Map<String, dynamic>> feedItems = [];
 
-  void _generateTask() async {
-    String result = await OpenAIService().generateTask(selectedCategory); // Pass the selected category
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Generated Task"),
-        content: Text(result),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text("Close"),
-          ),
-        ],
-      ),
-    );
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    greetingMessage = _getGreeting();
+    motivationalQuote = _getMotivationalQuote();
+    _fetchSkillCategories();
+    _fetchFeedItems();
+  }
+
+  String _getGreeting() {
+    int hour = DateTime.now().hour;
+    if (hour < 12) {
+      return "Good Morning,";
+    } else if (hour < 18) {
+      return "Good Afternoon,";
+    } else {
+      return "Good Evening,";
+    }
+  }
+
+  String _getMotivationalQuote() {
+    List<String> quotes = [
+      "Every day is a fresh start!",
+      "Believe in yourself and all that you are.",
+      "The secret of getting ahead is getting started.",
+      "Success is the sum of small efforts, repeated daily."
+    ];
+    return quotes[Random().nextInt(quotes.length)];
+  }
+
+  Future<void> _fetchSkillCategories() async {
+    try {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('categories').get();
+      if (snapshot.docs.isNotEmpty) {
+        setState(() {
+          skillCategories = snapshot.docs.map((doc) {
+            return {
+              'name': doc['name'],
+              'imageUrl': doc['imageUrl'] ?? '',
+            };
+          }).toList();
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching skill categories: $e')),
+      );
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _fetchFeedItems() async {
+    try {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('feed').get();
+      if (snapshot.docs.isNotEmpty) {
+        setState(() {
+          feedItems = snapshot.docs.map((doc) {
+            return {
+              'title': doc['title'],
+              'description': doc['description'],
+              'imageUrl': doc['imageUrl'] ?? '',
+            };
+          }).toList();
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching feed items: $e')),
+      );
+    }
+  }
+
+  void _generateFunFactAndTasks(String category) async {
+    try {
+      Map<String, dynamic> response = await OpenAIService().generateTasks(category);
+      if (response.containsKey('error')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response['error'])),
+        );
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TaskScreen(category: category),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error generating tasks: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Home")),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              DropdownButton<String>(
-                value: selectedCategory,
-                onChanged: (String? newValue) {
-                  setState(() {
-                    selectedCategory = newValue!;
-                  });
-                },
-                items: <String>['Gaming', 'Swimming', 'Coding', 'Web Designing', 'Music', 'Art']
-                    .map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _generateTask,
-                child: const Text("Generate Task"),
-              ),
-            ],
-          ),
+      appBar: _buildAppBar(),
+      backgroundColor: const Color(0xFF121212),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildGreetingSection(),
+            const SizedBox(height: 20),
+            _buildMotivationalCard(),
+            const SizedBox(height: 30),
+            _buildSectionTitle("Recommendations"),
+            _buildSkillCategories(),
+            const SizedBox(height: 30),
+            _buildArtisticDivider(),
+            const SizedBox(height: 30),
+            _buildSectionTitle("Feed"), // Feed section added here
+            _buildFeed(), // Feed content
+          ],
         ),
+      ),
+    );
+  }
+
+  AppBar _buildAppBar() {
+    return AppBar(
+      backgroundColor: const Color.fromRGBO(0, 0, 0, 1),
+      elevation: 0,
+      title: const Text(
+        "Rando",
+        style: TextStyle(
+          color: Color.fromARGB(255, 0, 163, 255),
+          fontSize: 26,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGreetingSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FadeInUp(
+          duration: const Duration(seconds: 1),
+          child: Text(greetingMessage, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 5),
+        FadeInUp(
+          duration: const Duration(seconds: 1),
+          child: Text("Welcome back! Ready to achieve your goals?",
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white60)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMotivationalCard() {
+    return SlideInUp(
+      duration: const Duration(seconds: 1),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2C2C2C),
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 4)],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(motivationalQuote, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white, fontStyle: FontStyle.italic)),
+            const SizedBox(height: 10),
+            Text("🔥 You have completed 3 tasks today!",
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.orangeAccent)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+    );
+  }
+
+  Widget _buildSkillCategories() {
+    return SizedBox(
+      height: 120,
+      child: isLoading
+          ? const _LoadingIndicator()
+          : skillCategories.isEmpty
+              ? const Center(child: Text('No categories found', style: TextStyle(color: Colors.grey)))
+              : ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: skillCategories.length,
+                  itemBuilder: (context, index) {
+                    var category = skillCategories[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: FadeInLeft(
+                        duration: const Duration(seconds: 1),
+                        child: GestureDetector(
+                          onTap: () => _generateFunFactAndTasks(category['name']),
+                          child: _SkillCategoryCard(category),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+
+  Widget _buildFeed() {
+    return feedItems.isEmpty
+        ? const _LoadingIndicator()
+        : Column(
+            children: feedItems.map((feed) {
+              return ListTile(
+                title: Text(feed['title'], style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white)),
+                subtitle: Text(feed['description'], style: TextStyle(color: Colors.grey)),
+                tileColor: const Color(0xFF2C2C2C),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.all(12),
+              );
+            }).toList(),
+          );
+  }
+
+  Widget _buildArtisticDivider() {
+    return Container(
+      height: 2,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blueAccent, Colors.purpleAccent, Colors.blueAccent],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingIndicator extends StatelessWidget {
+  const _LoadingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: CircularProgressIndicator(color: Colors.white));
+  }
+}
+
+class _SkillCategoryCard extends StatelessWidget {
+  final Map<String, dynamic> category;
+  const _SkillCategoryCard(this.category);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 100,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2C2C2C),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: CachedNetworkImage(
+              imageUrl: category['imageUrl'],
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(color: Colors.grey.shade300),
+              errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
+          Center(
+            child: Text(
+              category['name'],
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
       ),
     );
   }

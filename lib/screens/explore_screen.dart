@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../services/openai_service.dart';
-import 'task_screen.dart'; // Import the TaskScreen
+import 'task_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -11,168 +12,210 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
-  List<String> categories = []; // List of all categories
-  List<String> filteredCategories = []; // List for filtered categories based on search input
-  bool isLoading = true; // To show a loading indicator until data is fetched
-  TextEditingController _searchController = TextEditingController(); // Controller for search bar
+  late final TextEditingController _searchController;
+  List<Map<String, dynamic>> categories = [];
+  List<Map<String, dynamic>> filteredCategories = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchCategories(); // Fetch categories from Firestore when the screen is initialized
-    _searchController.addListener(_filterCategories); // Add listener to search input
+    _searchController = TextEditingController()..addListener(_filterCategories);
+    _fetchCategories();
   }
 
-  // Function to fetch categories from Firestore
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchCategories() async {
     try {
-      print('Fetching categories from Firestore...');
-      // Fetch categories collection from Firestore
-      QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('categories').get();
-      
-      // Check if data is returned
-      if (snapshot.docs.isNotEmpty) {
-        categories = snapshot.docs.map((doc) => doc['name'] as String).toList();
-        filteredCategories = List.from(categories); // Initially, show all categories
-        print('Categories fetched: $categories'); // Debugging print statement
-      } else {
-        print('No categories found in Firestore');
-      }
+      QuerySnapshot snapshot =
+          await FirebaseFirestore.instance.collection('categories').get();
 
-      setState(() {
-        isLoading = false; // Set loading to false after data is fetched
-      });
+      if (snapshot.docs.isNotEmpty) {
+        categories = snapshot.docs.map((doc) {
+          return {
+            'name': doc['name'],
+            'imageUrl': doc['imageUrl'] ?? '',
+          };
+        }).toList();
+        filteredCategories = List.from(categories);
+      }
     } catch (e) {
-      print('Error fetching categories: $e');
-      setState(() {
-        isLoading = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching categories: $e')),
+      );
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
-  // Function to filter categories based on search query
   void _filterCategories() {
     String query = _searchController.text.toLowerCase();
     setState(() {
       filteredCategories = categories
-          .where((category) => category.toLowerCase().contains(query))
+          .where((category) => category['name'].toLowerCase().contains(query))
           .toList();
     });
   }
 
   void _generateFunFactAndTasks(String category) async {
     try {
-      print('Generating task for category: $category');
-      String response = await OpenAIService().generateTask(category); // Pass the category
-      print('Received response from OpenAI: $response');
-      
-      if (response.isEmpty) {
-        print('Received empty response from OpenAI');
+      Map<String, dynamic> response = await OpenAIService().generateTasks(category);
+      if (response.containsKey('error')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response['error'])),
+        );
+        return;
       }
-
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => TaskScreen(fact: response, category: category), // Pass the fact and category to TaskScreen
+          builder: (context) => TaskScreen(category: category),
         ),
       );
     } catch (e) {
-      print('Error generating task: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error generating tasks: $e')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Explore"),
-        centerTitle: true,
-        elevation: 4,
-        backgroundColor: Colors.deepPurpleAccent,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AppBar(
+          automaticallyImplyLeading: false,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color.fromARGB(255, 0, 163, 255),
+                  Color.fromARGB(255, 0, 123, 200),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          title: const Text("Explore"),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: isLoading
-              ? const CircularProgressIndicator() // Show a loading indicator while fetching data
-              : Column(
-                  children: [
-                    // Search Bar
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          labelText: 'Search Categories',
-                          hintText: 'Enter category name',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10.0),
-                          ),
-                          prefixIcon: const Icon(Icons.search),
-                        ),
-                      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Search Categories',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                prefixIcon: const Icon(Icons.search),
+              ),
+            ),
+            const SizedBox(height: 16),
+            isLoading
+                ? const Expanded(
+                    child: Center(
+                      child: CircularProgressIndicator(),
                     ),
-                    // Category Carousel
-                    SizedBox(
-                      height: 250, // Height for the carousel
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal, // Horizontal scrolling
-                        itemCount: filteredCategories.length,
-                        itemBuilder: (context, index) {
-                          print('Building category card for: ${filteredCategories[index]}');
-                          return GestureDetector(
-                            onTap: () => _generateFunFactAndTasks(filteredCategories[index]),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                              child: Card(
-                                elevation: 8, // Card elevation for a modern look
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15.0), // Rounded corners for card
-                                ),
-                                color: Colors.blueAccent,
-                                child: Container(
-                                  width: 180, // Fixed width for the cards
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.blueAccent.withOpacity(0.7),
-                                        Colors.blue.withOpacity(0.6),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
+                  )
+                : filteredCategories.isEmpty
+                    ? const Expanded(
+                        child: Center(
+                          child: Text(
+                            'No categories found',
+                            style: TextStyle(fontSize: 18, color: Color.fromARGB(255, 158, 158, 158)),
+                          ),
+                        ),
+                      )
+                    : Flexible(
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: filteredCategories.length,
+                          itemBuilder: (context, index) {
+                            var category = filteredCategories[index];
+                            return GestureDetector(
+                              onTap: () => _generateFunFactAndTasks(category['name']),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                                child: Card(
+                                  elevation: 8,
+                                  shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(15.0),
                                   ),
-                                  child: Text(
-                                    filteredCategories[index],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.5,
+                                  color: Colors.blueAccent,
+                                  child: Container(
+                                    width: 180,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(15.0),
                                     ),
-                                    textAlign: TextAlign.center,
+                                    child: Stack(
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(15.0),
+                                          child: CachedNetworkImage(
+                                            imageUrl: category['imageUrl'],
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            placeholder: (context, url) =>
+                                                Container(color: Colors.grey.shade300),
+                                            errorWidget: (context, url, error) =>
+                                                const Icon(Icons.error, color: Colors.red),
+                                          ),
+                                        ),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.4),
+                                            borderRadius: BorderRadius.circular(15.0),
+                                          ),
+                                          child: Center(
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(8.0),
+                                              child: Text(
+                                                category['name'],
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 30), // Space between carousel and other content
-                    const Text(
-                      'Choose a category to explore and generate daily tasks!',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.grey,
-                        fontStyle: FontStyle.italic,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 20),
+            const Text(
+              'Choose a category to explore and generate daily tasks!',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
