@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:lottie/lottie.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/openai_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class TaskScreen extends StatefulWidget {
   final String category;
@@ -15,6 +17,8 @@ class TaskScreen extends StatefulWidget {
 class _TaskScreenState extends State<TaskScreen> {
   late Future<Map<String, dynamic>> taskFuture;
   bool isLoading = true;
+  List<bool> selectedTasks = [];
+  List<String> tasks = []; // Define tasks list
 
   @override
   void initState() {
@@ -30,11 +34,52 @@ class _TaskScreenState extends State<TaskScreen> {
   void regenerateTasks() {
     setState(() {
       isLoading = true;
+      selectedTasks.clear(); // Clear selected tasks
       taskFuture = OpenAIService().generateTasks(widget.category);
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) setState(() => isLoading = false);
       });
     });
+  }
+
+  Future<void> saveSelectedTasks(List<String> tasks) async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      final userTasksRef = FirebaseFirestore.instance.collection('users').doc(userId).collection('tasks');
+
+      for (var task in tasks) {
+        await userTasksRef.add({
+          'task': task,
+          'createdAt': Timestamp.now(),
+        });
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tasks saved successfully!')),
+      );
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to save tasks')),
+      );
+    }
+  }
+
+  void followTasks(List<String> tasks) {
+    final selectedTaskList = <String>[];
+
+    for (int i = 0; i < selectedTasks.length; i++) {
+      if (selectedTasks[i]) {
+        selectedTaskList.add(tasks[i]); // Add the task to the list if it's selected
+      }
+    }
+
+    if (selectedTaskList.isNotEmpty) {
+      saveSelectedTasks(selectedTaskList);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one task to follow.')),
+      );
+    }
   }
 
   @override
@@ -52,8 +97,13 @@ class _TaskScreenState extends State<TaskScreen> {
                 return Center(child: Text(snapshot.data?['error'] ?? 'An error occurred'));
               }
 
-              final tasks = snapshot.data!['tasks'];
+              tasks = List<String>.from(snapshot.data!['tasks']);
               final fact = snapshot.data!['fact'];
+
+              // Initialize the selectedTasks list to match the number of tasks
+              if (selectedTasks.length != tasks.length) {
+                selectedTasks = List.generate(tasks.length, (index) => false);
+              }
 
               return Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -97,6 +147,14 @@ class _TaskScreenState extends State<TaskScreen> {
                                   tasks[index],
                                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                                 ),
+                                trailing: Checkbox(
+                                  value: selectedTasks[index],
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedTasks[index] = value!;
+                                    });
+                                  },
+                                ),
                               ),
                             ),
                           );
@@ -114,7 +172,7 @@ class _TaskScreenState extends State<TaskScreen> {
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
                         ),
                         ElevatedButton.icon(
-                          onPressed: () {},
+                          onPressed: () => followTasks(tasks), // Pass tasks to followTasks
                           icon: const Icon(Icons.favorite),
                           label: const Text("Follow"),
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),

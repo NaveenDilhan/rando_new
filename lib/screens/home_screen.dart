@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:animate_do/animate_do.dart';
-import 'package:lottie/lottie.dart';
-import '../services/openai_service.dart'; 
+import 'package:intl/intl.dart';
+import '../services/openai_service.dart';
 import 'task_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,29 +18,32 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late String greetingMessage;
   late String motivationalQuote;
-  List<bool> taskCompletion = [false, false, false];
   List<Map<String, dynamic>> skillCategories = [];
-  bool isLoading = true;
   List<Map<String, dynamic>> feedItems = [];
+  Map<String, dynamic>? currentUserData;
+  bool isLoading = true;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void initState() {
+    super.initState();
     greetingMessage = _getGreeting();
     motivationalQuote = _getMotivationalQuote();
-    _fetchSkillCategories();
-    _fetchFeedItems();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    setState(() => isLoading = true);
+    await _fetchUserData();
+    await _fetchSkillCategories();
+    await _fetchFeedItems();
+    if (mounted) setState(() => isLoading = false);
   }
 
   String _getGreeting() {
-    int hour = DateTime.now().hour;
-    if (hour < 12) {
-      return "Good Morning,";
-    } else if (hour < 18) {
-      return "Good Afternoon,";
-    } else {
-      return "Good Evening,";
-    }
+    final hour = DateTime.now().hour;
+    if (hour < 12) return "Good Morning,";
+    if (hour < 18) return "Good Afternoon,";
+    return "Good Evening,";
   }
 
   String _getMotivationalQuote() {
@@ -52,68 +56,116 @@ class _HomeScreenState extends State<HomeScreen> {
     return quotes[Random().nextInt(quotes.length)];
   }
 
-  Future<void> _fetchSkillCategories() async {
+  Future<void> _fetchUserData() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
     try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('categories').get();
-      if (snapshot.docs.isNotEmpty) {
+      DocumentSnapshot snapshot =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      if (snapshot.exists && mounted) {
         setState(() {
-          skillCategories = snapshot.docs.map((doc) {
-            return {
-              'name': doc['name'],
-              'imageUrl': doc['imageUrl'] ?? '',
-            };
-          }).toList();
+          currentUserData = snapshot.data() as Map<String, dynamic>;
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching skill categories: $e')),
-      );
-    } finally {
-      setState(() => isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching user info: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _fetchSkillCategories() async {
+    try {
+      QuerySnapshot snapshot =
+          await FirebaseFirestore.instance.collection('categories').get();
+
+      if (mounted) {
+        skillCategories = snapshot.docs.map((doc) {
+          return {
+            'name': doc['name'] ?? '',
+            'imageUrl': doc['imageUrl'] ?? '',
+          };
+        }).toList();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching skill categories: $e')),
+        );
+      }
     }
   }
 
   Future<void> _fetchFeedItems() async {
     try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('feed').get();
-      if (snapshot.docs.isNotEmpty) {
-        setState(() {
-          feedItems = snapshot.docs.map((doc) {
-            return {
-              'title': doc['title'],
-              'description': doc['description'],
-              'imageUrl': doc['imageUrl'] ?? '',
-            };
-          }).toList();
-        });
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('posts')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      if (mounted) {
+        feedItems = snapshot.docs.map((doc) {
+          return {
+            'title': doc['title'] ?? '',
+            'content': doc['content'] ?? '',
+            'imageUrl': doc['imageUrl'] ?? '',
+            'createdAt': doc['createdAt'],
+            'userId': doc['userId'] ?? '',
+          };
+        }).toList();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching feed items: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching feed items: $e')),
+        );
+      }
     }
+  }
+
+  Future<Map<String, dynamic>?> _getUserDetails(String uid) async {
+    try {
+      DocumentSnapshot snapshot =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (snapshot.exists) {
+        return snapshot.data() as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
   }
 
   void _generateFunFactAndTasks(String category) async {
     try {
-      Map<String, dynamic> response = await OpenAIService().generateTasks(category);
+      Map<String, dynamic> response =
+          await OpenAIService().generateTasks(category);
+
       if (response.containsKey('error')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response['error'])),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(response['error'])),
+          );
+        }
         return;
       }
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => TaskScreen(category: category),
-        ),
-      );
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TaskScreen(category: category),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating tasks: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating tasks: $e')),
+        );
+      }
     }
   }
 
@@ -122,31 +174,39 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: _buildAppBar(),
       backgroundColor: const Color(0xFF121212),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildGreetingSection(),
-            const SizedBox(height: 20),
-            _buildMotivationalCard(),
-            const SizedBox(height: 30),
-            _buildSectionTitle("Recommendations"),
-            _buildSkillCategories(),
-            const SizedBox(height: 30),
-            _buildArtisticDivider(),
-            const SizedBox(height: 30),
-            _buildSectionTitle("Feed"), // Feed section added here
-            _buildFeed(), // Feed content
-          ],
-        ),
-      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          : RefreshIndicator(
+              onRefresh: _initializeData,
+              color: Colors.white,
+              backgroundColor: Colors.black,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildGreetingSection(),
+                    const SizedBox(height: 20),
+                    _buildMotivationalCard(),
+                    const SizedBox(height: 30),
+                    _buildSectionTitle("Recommendations"),
+                    _buildSkillCategories(),
+                    const SizedBox(height: 30),
+                    _buildArtisticDivider(),
+                    const SizedBox(height: 30),
+                    _buildSectionTitle("Feed"),
+                    _buildFeed(),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 
   AppBar _buildAppBar() {
     return AppBar(
-      backgroundColor: const Color.fromRGBO(0, 0, 0, 1),
+      backgroundColor: Colors.black,
       elevation: 0,
       title: const Text(
         "Rando",
@@ -160,18 +220,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildGreetingSection() {
+    final name = currentUserData != null
+        ? "${currentUserData!['firstName']}"
+        : '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         FadeInUp(
-          duration: const Duration(seconds: 1),
-          child: Text(greetingMessage, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+          duration: const Duration(milliseconds: 600),
+          child: Text(
+            "$greetingMessage $name",
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
         ),
         const SizedBox(height: 5),
         FadeInUp(
-          duration: const Duration(seconds: 1),
-          child: Text("Welcome back! Ready to achieve your goals?",
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white60)),
+          duration: const Duration(milliseconds: 800),
+          child: Text(
+            "Welcome back! Ready to achieve your goals?",
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: Colors.white60),
+          ),
         ),
       ],
     );
@@ -179,22 +253,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildMotivationalCard() {
     return SlideInUp(
-      duration: const Duration(seconds: 1),
+      duration: const Duration(milliseconds: 600),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: const Color(0xFF2C2C2C),
           borderRadius: BorderRadius.circular(15),
-          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 4)],
+          boxShadow: const [
+            BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 4)
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(motivationalQuote, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white, fontStyle: FontStyle.italic)),
+            Text(
+              motivationalQuote,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(color: Colors.white, fontStyle: FontStyle.italic),
+            ),
             const SizedBox(height: 10),
-            Text("🔥 You have completed 3 tasks today!",
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.orangeAccent)),
+            Text(
+              "🔥 You have completed 3 tasks today!",
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(color: Colors.orangeAccent),
+            ),
           ],
         ),
       ),
@@ -204,57 +291,127 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+      style: Theme.of(context)
+          .textTheme
+          .titleLarge
+          ?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
     );
   }
 
   Widget _buildSkillCategories() {
     return SizedBox(
       height: 120,
-      child: isLoading
-          ? const _LoadingIndicator()
-          : skillCategories.isEmpty
-              ? const Center(child: Text('No categories found', style: TextStyle(color: Colors.grey)))
-              : ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: skillCategories.length,
-                  itemBuilder: (context, index) {
-                    var category = skillCategories[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: FadeInLeft(
-                        duration: const Duration(seconds: 1),
-                        child: GestureDetector(
-                          onTap: () => _generateFunFactAndTasks(category['name']),
-                          child: _SkillCategoryCard(category),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+      child: skillCategories.isEmpty
+          ? const Center(
+              child: Text('No categories found',
+                  style: TextStyle(color: Colors.grey)))
+          : ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: skillCategories.length,
+              itemBuilder: (context, index) {
+                var category = skillCategories[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: FadeInLeft(
+                    duration: const Duration(milliseconds: 500),
+                    child: GestureDetector(
+                      onTap: () =>
+                          _generateFunFactAndTasks(category['name']),
+                      child: _SkillCategoryCard(category),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 
   Widget _buildFeed() {
-    return feedItems.isEmpty
-        ? const _LoadingIndicator()
-        : Column(
-            children: feedItems.map((feed) {
-              return ListTile(
-                title: Text(feed['title'], style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white)),
-                subtitle: Text(feed['description'], style: TextStyle(color: Colors.grey)),
-                tileColor: const Color(0xFF2C2C2C),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.all(12),
-              );
-            }).toList(),
-          );
+    return Column(
+      children: feedItems.map((feed) {
+        return FutureBuilder<Map<String, dynamic>?>(
+          future: _getUserDetails(feed['userId']),
+          builder: (context, snapshot) {
+            final userData = snapshot.data;
+            final name = userData != null
+                ? "${userData['firstName']} ${userData['lastName']}"
+                : 'Anonymous';
+            final email = userData?['email'] ?? '';
+            return Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const CircleAvatar(
+                        backgroundImage:
+                            AssetImage('assets/profile_placeholder.png'),
+                        radius: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white)),
+                            Text(email,
+                                style: const TextStyle(
+                                    color: Colors.grey, fontSize: 12)),
+                            if (feed['createdAt'] != null)
+                              Text(
+                                DateFormat('MMM d, y • h:mm a')
+                                    .format(feed['createdAt'].toDate()),
+                                style: const TextStyle(
+                                    color: Colors.grey, fontSize: 12),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(feed['title'],
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.white)),
+                  const SizedBox(height: 4),
+                  Text(feed['content'],
+                      style: const TextStyle(color: Colors.white70)),
+                  if (feed['imageUrl'].isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      height: 200,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        image: DecorationImage(
+                          image: NetworkImage(feed['imageUrl']),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      }).toList(),
+    );
   }
 
   Widget _buildArtisticDivider() {
     return Container(
       height: 2,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.blueAccent, Colors.purpleAccent, Colors.blueAccent],
           begin: Alignment.centerLeft,
@@ -262,15 +419,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
-  }
-}
-
-class _LoadingIndicator extends StatelessWidget {
-  const _LoadingIndicator();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator(color: Colors.white));
   }
 }
 
@@ -285,7 +433,7 @@ class _SkillCategoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C2C),
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
       ),
       child: Stack(
         fit: StackFit.expand,
@@ -295,8 +443,10 @@ class _SkillCategoryCard extends StatelessWidget {
             child: CachedNetworkImage(
               imageUrl: category['imageUrl'],
               fit: BoxFit.cover,
-              placeholder: (context, url) => Container(color: Colors.grey.shade300),
-              errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
+              placeholder: (context, url) =>
+                  Container(color: Colors.grey.shade300),
+              errorWidget: (context, url, error) =>
+                  const Icon(Icons.error, color: Colors.red),
             ),
           ),
           Container(
