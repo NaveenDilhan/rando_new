@@ -9,8 +9,7 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  String notificationTitle = "No New Notifications";
-  String notificationBody = "Check back later for updates.";
+  final List<Map<String, dynamic>> notifications = [];
 
   @override
   void initState() {
@@ -20,8 +19,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (message.notification != null) {
         setState(() {
-          notificationTitle = message.notification!.title ?? "New Notification";
-          notificationBody = message.notification!.body ?? "You have a new message.";
+          notifications.insert(0, {
+            'title': message.notification!.title ?? "New Notification",
+            'body': message.notification!.body ?? "You have a new message.",
+            'timestamp': DateTime.now().toLocal(),
+          });
         });
       }
     });
@@ -30,48 +32,71 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: AppBar(
-          automaticallyImplyLeading: false,
-          flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color.fromARGB(255, 0, 163, 255),
-                  Color.fromARGB(255, 0, 123, 200),
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF007ACC),
+        elevation: 0,
+      ),
+      body: notifications.isEmpty
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.notifications_off, size: 80, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    "No New Notifications",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  SizedBox(height: 8),
+                  Text("You're all caught up!", style: TextStyle(fontSize: 14)),
                 ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
               ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: notifications.length,
+              itemBuilder: (context, index) {
+                final notif = notifications[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Card(
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFF007ACC),
+                        child: Icon(Icons.notifications, color: Colors.white),
+                      ),
+                      title: Text(
+                        notif['title'],
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        notif['body'],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: Text(
+                        _formatTime(notif['timestamp']),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-          title: const Text('Notifications'),
-          centerTitle: true,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.notifications, size: 100, color: Colors.blue),
-            const SizedBox(height: 20),
-            Text(
-              notificationTitle,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              notificationBody,
-              style: const TextStyle(fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
     );
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final time = TimeOfDay.fromDateTime(dateTime);
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return "$hour:$minute $period";
   }
 }
