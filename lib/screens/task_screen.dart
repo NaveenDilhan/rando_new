@@ -18,7 +18,7 @@ class _TaskScreenState extends State<TaskScreen> {
   late Future<Map<String, dynamic>> taskFuture;
   bool isLoading = true;
   List<bool> selectedTasks = [];
-  List<String> tasks = []; // Define tasks list
+  List<String> tasks = [];
 
   @override
   void initState() {
@@ -34,7 +34,7 @@ class _TaskScreenState extends State<TaskScreen> {
   void regenerateTasks() {
     setState(() {
       isLoading = true;
-      selectedTasks.clear(); // Clear selected tasks
+      selectedTasks.clear();
       taskFuture = OpenAIService().generateTasks(widget.category);
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) setState(() => isLoading = false);
@@ -43,9 +43,19 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   Future<void> saveSelectedTasks(List<String> tasks) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to save tasks')),
+      );
+      return;
+    }
+
     try {
-      final userId = FirebaseAuth.instance.currentUser?.uid;
-      final userTasksRef = FirebaseFirestore.instance.collection('users').doc(userId).collection('tasks');
+      final userTasksRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('tasks');
 
       for (var task in tasks) {
         await userTasksRef.add({
@@ -69,7 +79,7 @@ class _TaskScreenState extends State<TaskScreen> {
 
     for (int i = 0; i < selectedTasks.length; i++) {
       if (selectedTasks[i]) {
-        selectedTaskList.add(tasks[i]); // Add the task to the list if it's selected
+        selectedTaskList.add(tasks[i]);
       }
     }
 
@@ -92,7 +102,7 @@ class _TaskScreenState extends State<TaskScreen> {
             future: taskFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting || isLoading) {
-                return Center(child: CircularProgressIndicator());
+                return const Center(child: CircularProgressIndicator());
               } else if (snapshot.hasError || snapshot.data?['error'] != null) {
                 return Center(child: Text(snapshot.data?['error'] ?? 'An error occurred'));
               }
@@ -100,7 +110,6 @@ class _TaskScreenState extends State<TaskScreen> {
               tasks = List<String>.from(snapshot.data!['tasks']);
               final fact = snapshot.data!['fact'];
 
-              // Initialize the selectedTasks list to match the number of tasks
               if (selectedTasks.length != tasks.length) {
                 selectedTasks = List.generate(tasks.length, (index) => false);
               }
@@ -141,7 +150,7 @@ class _TaskScreenState extends State<TaskScreen> {
                                   'assets/task_icon.json',
                                   width: 40,
                                   errorBuilder: (context, error, stackTrace) =>
-                                      Icon(Icons.task, size: 40, color: Colors.blue),
+                                      const Icon(Icons.task, size: 40, color: Colors.blue),
                                 ),
                                 title: Text(
                                   tasks[index],
@@ -172,7 +181,7 @@ class _TaskScreenState extends State<TaskScreen> {
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
                         ),
                         ElevatedButton.icon(
-                          onPressed: () => followTasks(tasks), // Pass tasks to followTasks
+                          onPressed: () => followTasks(tasks),
                           icon: const Icon(Icons.favorite),
                           label: const Text("Follow"),
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
@@ -187,7 +196,7 @@ class _TaskScreenState extends State<TaskScreen> {
           if (isLoading)
             Container(
               color: Colors.white.withOpacity(0.8),
-              child: Center(child: CircularProgressIndicator()),
+              child: const Center(child: CircularProgressIndicator()),
             ),
         ],
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:share_plus/share_plus.dart';
 import 'task_manager_screen.dart';
 import 'habits_screen.dart';
 import 'achievements_screen.dart';
@@ -9,19 +10,85 @@ import 'settings_screen.dart';
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
+  // Function to handle liking/unliking a post
+  Future<void> _toggleLike(String postId, String userId, bool isLiked) async {
+    final likeRef = FirebaseFirestore.instance
+        .collection('posts')
+        .doc(postId)
+        .collection('likes')
+        .doc(userId);
+
+    if (isLiked) {
+      // Unlike: Remove the like document
+      await likeRef.delete();
+    } else {
+      // Like: Add a like document
+      await likeRef.set({
+        'likedAt': Timestamp.now(),
+      });
+    }
+  }
+
+  // Function to add a comment
+  Future<void> _addComment(BuildContext context, String postId, String userId, String username) async {
+    final commentController = TextEditingController();
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Comment'),
+        content: TextField(
+          controller: commentController,
+          decoration: const InputDecoration(hintText: 'Enter your comment'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (commentController.text.trim().isNotEmpty) {
+                await FirebaseFirestore.instance
+                    .collection('posts')
+                    .doc(postId)
+                    .collection('comments')
+                    .add({
+                  'userId': userId,
+                  'username': username,
+                  'content': commentController.text.trim(),
+                  'createdAt': Timestamp.now(),
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Function to share a post
+  void _sharePost(String content, String? imageUrl) {
+    String shareText = content;
+    if (imageUrl != null) {
+      shareText += '\nImage: $imageUrl';
+    }
+    Share.share(shareText, subject: 'Check out this post!');
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      // If the user is not logged in, show a login prompt or redirect to login screen
-      return Center(child: Text("Please log in to view your profile"));
+      return const Center(child: Text("Please log in to view your profile"));
     }
 
     final email = user.email ?? "user@example.com";
     final username = email.split('@')[0];
 
     return Scaffold(
-      backgroundColor: Colors.black, // Dark background for the entire screen
+      backgroundColor: Colors.black,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         flexibleSpace: Container(
@@ -41,14 +108,14 @@ class ProfileScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          PopupMenuButton<String>( 
+          PopupMenuButton<String>(
             icon: const Icon(Icons.menu, color: Colors.white),
             onSelected: (value) {
               switch (value) {
                 case 'Tasks':
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => TaskManagerScreen()),
+                    MaterialPageRoute(builder: (context) => const TaskManagerScreen()),
                   );
                   break;
                 case 'Habits':
@@ -71,7 +138,7 @@ class ProfileScreen extends StatelessWidget {
                   value: 'Tasks',
                   child: Row(
                     children: const [
-                      Icon(Icons.task_alt, color: Colors.black),
+                      Icon(Icons.task_alt, color: Color.fromARGB(255, 224, 220, 220)),
                       SizedBox(width: 10),
                       Text('Tasks'),
                     ],
@@ -81,7 +148,7 @@ class ProfileScreen extends StatelessWidget {
                   value: 'Habits',
                   child: Row(
                     children: const [
-                      Icon(Icons.list, color: Colors.black),
+                      Icon(Icons.list, color: Color.fromARGB(255, 224, 220, 220)),
                       SizedBox(width: 10),
                       Text('Habits'),
                     ],
@@ -91,7 +158,7 @@ class ProfileScreen extends StatelessWidget {
                   value: 'Achievements',
                   child: Row(
                     children: const [
-                      Icon(Icons.emoji_events, color: Colors.black),
+                      Icon(Icons.emoji_events, color:Color.fromARGB(255, 224, 220, 220)),
                       SizedBox(width: 10),
                       Text('Achievements'),
                     ],
@@ -114,8 +181,8 @@ class ProfileScreen extends StatelessWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.start, // Start content from the top
-          crossAxisAlignment: CrossAxisAlignment.center, // Center content horizontally
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             CircleAvatar(
               radius: 50,
@@ -138,10 +205,9 @@ class ProfileScreen extends StatelessWidget {
               email,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white54),
             ),
-            const SizedBox(height: 40), // Extra space to separate profile section
+            const SizedBox(height: 40),
             const Divider(color: Colors.grey),
             const SizedBox(height: 20),
-            // Fetch and display posts specific to the currently logged-in user
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('posts')
@@ -167,12 +233,17 @@ class ProfileScreen extends StatelessWidget {
                 }
 
                 return ListView.builder(
-                  shrinkWrap: true, // Important to allow scrolling within a scrollable widget
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: posts.length,
                   itemBuilder: (context, index) {
                     final post = posts[index];
-                    final postTimestamp = (post['createdAt'] as Timestamp).toDate();
-                    final formattedTime = "${postTimestamp.hour}:${postTimestamp.minute} | ${postTimestamp.day}/${postTimestamp.month}/${postTimestamp.year}";
+                    final postData = post.data() as Map<String, dynamic>;
+                    final postTimestamp = (postData['createdAt'] as Timestamp).toDate();
+                    final formattedTime =
+                        "${postTimestamp.hour}:${postTimestamp.minute} | ${postTimestamp.day}/${postTimestamp.month}/${postTimestamp.year}";
+                    final content = postData['content'] ?? 'No content';
+                    final imageUrl = postData['imageUrl'] as String?;
 
                     return Card(
                       color: Colors.grey[900],
@@ -185,7 +256,6 @@ class ProfileScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Post header with avatar and username
                             Row(
                               children: [
                                 CircleAvatar(
@@ -209,39 +279,128 @@ class ProfileScreen extends StatelessWidget {
                               ],
                             ),
                             const SizedBox(height: 10),
-                            // Post content
                             Text(
-                              post['content'] ?? 'No content',
+                              content,
                               style: const TextStyle(color: Colors.white),
                             ),
                             const SizedBox(height: 10),
-                            // Post image if available
-                            if (post['imageUrl'] != null)
-                              Image.network(post['imageUrl'], height: 200, width: double.infinity, fit: BoxFit.cover),
+                            if (imageUrl != null)
+                              Image.network(
+                                imageUrl,
+                                height: 200,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+                              ),
                             const SizedBox(height: 10),
-                            // Interaction buttons
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.thumb_up, color: Colors.white),
-                                  onPressed: () {
-                                    // Like post action
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.comment, color: Colors.white),
-                                  onPressed: () {
-                                    // Comment on post action
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.share, color: Colors.white),
-                                  onPressed: () {
-                                    // Share post action
-                                  },
-                                ),
-                              ],
+                            // Like, Comment, Share Buttons with Like Count
+                            StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('posts')
+                                  .doc(post.id)
+                                  .collection('likes')
+                                  .snapshots(),
+                              builder: (context, likeSnapshot) {
+                                if (likeSnapshot.connectionState == ConnectionState.waiting) {
+                                  return const SizedBox.shrink();
+                                }
+                                final likes = likeSnapshot.data?.docs ?? [];
+                                final isLiked = likes.any((like) => like.id == user.uid);
+                                final likeCount = likes.length;
+
+                                return Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          icon: Icon(
+                                            isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                                            color: isLiked ? Colors.blue : Colors.white,
+                                          ),
+                                          onPressed: () => _toggleLike(post.id, user.uid, isLiked),
+                                        ),
+                                        Text(
+                                          '$likeCount',
+                                          style: const TextStyle(color: Colors.white),
+                                        ),
+                                      ],
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.comment, color: Colors.white),
+                                      onPressed: () => _addComment(context, post.id, user.uid, username),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.share, color: Colors.white),
+                                      onPressed: () => _sharePost(content, imageUrl),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            // Comments Section
+                            StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('posts')
+                                  .doc(post.id)
+                                  .collection('comments')
+                                  .orderBy('createdAt', descending: true)
+                                  .snapshots(),
+                              builder: (context, commentSnapshot) {
+                                if (commentSnapshot.connectionState == ConnectionState.waiting) {
+                                  return const SizedBox.shrink();
+                                }
+                                final comments = commentSnapshot.data?.docs ?? [];
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: comments.map((comment) {
+                                    final commentData = comment.data() as Map<String, dynamic>;
+                                    final commentUsername = commentData['username'] ?? 'Unknown';
+                                    final commentContent = commentData['content'] ?? '';
+                                    final commentTimestamp = (commentData['createdAt'] as Timestamp).toDate();
+                                    final formattedCommentTime =
+                                        "${commentTimestamp.day}/${commentTimestamp.month}/${commentTimestamp.year}";
+
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 5),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 15,
+                                            backgroundColor: Colors.blueAccent,
+                                            child: Text(
+                                              commentUsername.isNotEmpty ? commentUsername[0].toUpperCase() : '',
+                                              style: const TextStyle(fontSize: 12, color: Colors.white),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  '$commentUsername ($formattedCommentTime)',
+                                                  style: const TextStyle(
+                                                    color: Colors.white54,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  commentContent,
+                                                  style: const TextStyle(color: Colors.white),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                );
+                              },
                             ),
                           ],
                         ),
