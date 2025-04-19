@@ -20,6 +20,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
   List<String> selectedTaskIds = [];
   bool showCompletedTasks = false;
   final TextEditingController _searchController = TextEditingController();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -35,6 +36,74 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
     super.dispose();
   }
 
+  Future<void> _checkAndUpdateAchievements() async {
+    if (user == null) return;
+
+    setState(() => isLoading = true);
+    try {
+      // Get the count of completed tasks
+      final tasksSnapshot = await _firestore
+          .collection('users')
+          .doc(user!.uid)
+          .collection('tasks')
+          .where('isCompleted', isEqualTo: true)
+          .get();
+      final completedTasksCount = tasksSnapshot.size;
+
+      // Update user's completedTasks count
+      await _firestore.collection('users').doc(user!.uid).set(
+        {'completedTasks': completedTasksCount},
+        SetOptions(merge: true),
+      );
+
+      // Get all available achievements
+      final achievementsSnapshot = await _firestore.collection('achievements').get();
+      final batch = _firestore.batch();
+
+      for (var achievementDoc in achievementsSnapshot.docs) {
+        final achievement = achievementDoc.data();
+        final achievementId = achievementDoc.id;
+        final requiredTasks = (achievement['requiredTasks'] as num?)?.toInt() ?? 0;
+
+        if (completedTasksCount >= requiredTasks) {
+          final completedAchievementRef = _firestore
+              .collection('users')
+              .doc(user!.uid)
+              .collection('completed_achievements')
+              .doc(achievementId);
+
+          final completedAchievement = await completedAchievementRef.get();
+
+          if (!completedAchievement.exists) {
+            batch.set(completedAchievementRef, {
+              'name': achievement['name'] as String? ?? 'Unknown',
+              'imageUrl': achievement['imageUrl'] as String? ?? '',
+              'description': achievement['description'] as String? ?? '',
+              'completedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      }
+
+      // Commit the batch
+      await batch.commit();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Achievements updated!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating achievements: $e')),
+        );
+      }
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
   Future<void> deleteSelectedTasks() async {
     if (selectedTaskIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -43,10 +112,11 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
       return;
     }
 
+    setState(() => isLoading = true);
     try {
-      final batch = FirebaseFirestore.instance.batch();
+      final batch = _firestore.batch();
       for (var taskId in selectedTaskIds) {
-        final ref = FirebaseFirestore.instance
+        final ref = _firestore
             .collection('users')
             .doc(user!.uid)
             .collection('tasks')
@@ -55,6 +125,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
       }
       await batch.commit();
       setState(() => selectedTaskIds.clear());
+      await _checkAndUpdateAchievements();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selected tasks deleted successfully!')),
       );
@@ -62,21 +133,27 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to delete tasks: $error')),
       );
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
   Future<void> toggleTaskCompletion(String taskId, bool currentStatus) async {
+    setState(() => isLoading = true);
     try {
-      await FirebaseFirestore.instance
+      await _firestore
           .collection('users')
           .doc(user!.uid)
           .collection('tasks')
           .doc(taskId)
           .update({'isCompleted': !currentStatus});
+      await _checkAndUpdateAchievements();
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to update task: $error')),
       );
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
@@ -92,12 +169,15 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
   Widget build(BuildContext context) {
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Task Manager'), backgroundColor: Colors.purple),
+        appBar: AppBar(
+          title: const Text('Task Manager'),
+          backgroundColor: Colors.purple,
+        ),
         body: const Center(child: Text('Please log in to view your tasks')),
       );
     }
 
-    final userTasksRef = FirebaseFirestore.instance
+    final userTasksRef = _firestore
         .collection('users')
         .doc(user!.uid)
         .collection('tasks');
@@ -108,7 +188,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
         backgroundColor: Colors.purple,
         actions: [
           IconButton(
-            icon: const Icon(Icons.sort),
+            icon: Icon(sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
             onPressed: toggleSortOrder,
             tooltip: 'Toggle Sort Order',
           ),
@@ -151,7 +231,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Completed Tasks',
+                      'Show Completed Tasks',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     Switch(
@@ -206,7 +286,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                             const SizedBox(height: 20),
                             Text(
                               searchQuery.isEmpty
-                                  ? 'No tasks followed yet!'
+                                  ? 'No tasks added yet!'
                                   : 'No tasks match your search',
                               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
                             ),
@@ -255,7 +335,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
           ),
           if (isLoading)
             Container(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.black.withOpacity(0.3),
               child: const Center(child: CircularProgressIndicator()),
             ),
         ],
@@ -266,7 +346,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
   Widget _buildTaskTile(QueryDocumentSnapshot task, int index) {
     final taskData = task.data() as Map<String, dynamic>;
     final taskText = taskData['task'] as String;
-    final createdAt = (taskData['createdAt'] as Timestamp).toDate();
+    final createdAt = (taskData['createdAt'] as Timestamp?)?.toDate();
     final isCompleted = taskData['isCompleted'] as bool? ?? false;
 
     return FadeInUp(
@@ -296,11 +376,13 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
               fontSize: 18,
               fontWeight: FontWeight.w500,
               decoration: isCompleted ? TextDecoration.lineThrough : null,
-              color: isCompleted ? Colors.grey : const Color.fromARGB(255, 237, 234, 234),
+              color: isCompleted ? Colors.grey : Colors.black87,
             ),
           ),
           subtitle: Text(
-            'Added: ${createdAt.toString().substring(0, 16)}',
+            createdAt != null
+                ? 'Added: ${createdAt.toString().substring(0, 16)}'
+                : 'Added: Unknown',
             style: const TextStyle(fontSize: 14, color: Colors.grey),
           ),
           trailing: IconButton(
