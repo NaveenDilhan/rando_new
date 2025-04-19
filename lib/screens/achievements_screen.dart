@@ -373,7 +373,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
                                     style: const TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
+                                      color: Color.fromARGB(221, 236, 233, 233),
                                     ),
                                     textAlign: TextAlign.center,
                                     maxLines: 2,
@@ -439,7 +439,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
                   backgroundColor: Colors.grey[200],
                   child: achievement['imageUrl']?.isEmpty != false
                       ? Lottie.asset(
-                          'assets/animations/trophy.json',
+                          'assets/animations/leaderboard.json',
                           width: 80,
                           height: 80,
                         )
@@ -525,7 +525,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
                     child: Column(
                       children: [
                         Lottie.asset(
-                          'assets/animations/empty.json',
+                          'assets/animations/leaderboard.json',
                           width: 100,
                           height: 100,
                         ),
@@ -580,9 +580,9 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
                           ),
                           trailing: index < 3
                               ? Lottie.asset(
-                                  'assets/animations/login_background.json',
-                                  width: 30,
-                                  height: 30,
+                                  'assets/animations/trophy.json',
+                                  width: 130,
+                                  height: 130,
                                 )
                               : null,
                         ),
