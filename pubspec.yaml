@@ -46,3 +46,6 @@ flutter:
     - assets/profile_placeholder.png  
     - assets/animations/challenge_background.json
     - assets/animations/login_background.json
+    - assets/animations/trophy.json
+    - assets/animations/leaderboard.json
+

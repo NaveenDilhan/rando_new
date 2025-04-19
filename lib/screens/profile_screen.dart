@@ -68,6 +68,40 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  // Function to delete a post
+  Future<void> _deletePost(BuildContext context, String postId) async {
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Post'),
+        content: const Text('Are you sure you want to delete this post? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                // Delete the post and its subcollections (likes and comments)
+                await FirebaseFirestore.instance.collection('posts').doc(postId).delete();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Post deleted successfully')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error deleting post: $e')),
+                );
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Function to share a post
   void _sharePost(String content, String? imageUrl) {
     String shareText = content;
@@ -148,7 +182,7 @@ class ProfileScreen extends StatelessWidget {
                   value: 'Habits',
                   child: Row(
                     children: const [
-                      Icon(Icons.list, color: Color.fromARGB(255, 224, 220, 220)),
+                      Icon(Icons.list, color:Color.fromARGB(255, 224, 220, 220)),
                       SizedBox(width: 10),
                       Text('Habits'),
                     ],
@@ -158,7 +192,7 @@ class ProfileScreen extends StatelessWidget {
                   value: 'Achievements',
                   child: Row(
                     children: const [
-                      Icon(Icons.emoji_events, color:Color.fromARGB(255, 224, 220, 220)),
+                      Icon(Icons.emoji_events, color: Color.fromARGB(255, 224, 220, 220)),
                       SizedBox(width: 10),
                       Text('Achievements'),
                     ],
@@ -275,6 +309,11 @@ class ProfileScreen extends StatelessWidget {
                                 Text(
                                   formattedTime,
                                   style: const TextStyle(color: Colors.white54, fontSize: 12),
+                                ),
+                                const SizedBox(width: 10),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => _deletePost(context, post.id),
                                 ),
                               ],
                             ),
