@@ -7,11 +7,29 @@
     <!-- For Android 11 and above, you need the following permission for broad storage access -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <application
         android:label="rando_new"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         
+        <service
+            android:name=".java.MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel" />
+
         <!-- MainActivity Configuration -->
         <activity
             android:name=".MainActivity"
