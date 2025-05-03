@@ -12,7 +12,7 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  final NotificationService _notificationService = NotificationService();
+  final NotificationService notificationService = NotificationService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final List<Map<String, dynamic>> _notifications = [];
   bool _isLoading = true;
@@ -170,8 +170,32 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         background: Container(
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.only(right: 20),
-                          color: Colors.red,
-                          child: const Icon(Icons.delete, color: Colors.white),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.red.shade400,
+                                Colors.red.shade600,
+                              ],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              const Icon(Icons.delete, color: Colors.white),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Delete',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         onDismissed: (direction) async {
                           if (notification['id'] != null) {
@@ -188,43 +212,73 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         },
                         child: Card(
                           margin: const EdgeInsets.only(bottom: 8),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           color: isRead ? Colors.white : Colors.blue.shade50,
                           child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: isRead ? Colors.grey : Colors.blue,
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: isRead ? Colors.grey.shade200 : Colors.blue.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               child: Icon(
                                 _getNotificationIcon(notification['type']),
-                                color: Colors.white,
+                                color: isRead ? Colors.grey.shade600 : Colors.blue.shade700,
+                                size: 20,
                               ),
                             ),
                             title: Text(
                               notification['title'],
                               style: TextStyle(
                                 fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                                color: isRead ? Colors.grey.shade800 : Colors.black,
                               ),
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(notification['body']),
+                                Text(
+                                  notification['body'],
+                                  style: TextStyle(
+                                    color: isRead ? Colors.grey.shade600 : Colors.grey.shade800,
+                                  ),
+                                ),
                                 const SizedBox(height: 4),
                                 Text(
                                   _formatTimestamp(timestamp),
-                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade500,
+                                  ),
                                 ),
                               ],
                             ),
-                            trailing: IconButton(
-                              icon: Icon(
-                                isRead ? Icons.check_circle : Icons.check_circle_outline,
-                                color: isRead ? Colors.grey : Colors.blue,
-                              ),
-                              onPressed: () {
-                                if (!isRead && notification['id'] != null) {
-                                  _markAsRead(notification['id']);
-                                }
-                              },
-                            ),
+                            trailing: !isRead && notification['id'] != null
+                                ? Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Colors.blue.shade200,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: IconButton(
+                                      icon: Icon(
+                                        Icons.check_circle_outline,
+                                        color: Colors.blue.shade700,
+                                        size: 20,
+                                      ),
+                                      onPressed: () => _markAsRead(notification['id']),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  )
+                                : null,
                             onTap: () {
                               if (!isRead && notification['id'] != null) {
                                 _markAsRead(notification['id']);

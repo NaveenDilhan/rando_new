@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/openai_service.dart';
 import '../services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class TaskScreen extends StatefulWidget {
   final String category;
@@ -62,6 +63,14 @@ class _TaskScreenState extends State<TaskScreen> {
           'status': 'pending',
         });
 
+        // Schedule default reminder for 24 hours from now
+        await _notificationService.scheduleTaskReminder(
+          userId: userId,
+          taskId: taskDoc.id,
+          taskTitle: task,
+          reminderTime: DateTime.now().add(const Duration(hours: 24)),
+        );
+
         // Send notification for new task
         await _notificationService.sendTaskNotification(
           userId: userId,
@@ -115,6 +124,48 @@ class _TaskScreenState extends State<TaskScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to complete task')),
         );
+      }
+    }
+  }
+
+  Future<void> _showReminderDialog(String taskId, String taskTitle) async {
+    final now = DateTime.now();
+    final initialTime = now.add(const Duration(hours: 24));
+    
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initialTime),
+    );
+
+    if (pickedTime != null) {
+      final selectedDateTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+
+      if (selectedDateTime.isBefore(now)) {
+        selectedDateTime.add(const Duration(days: 1));
+      }
+
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        await _notificationService.scheduleTaskReminder(
+          userId: userId,
+          taskId: taskId,
+          taskTitle: taskTitle,
+          reminderTime: selectedDateTime,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Reminder set for ${DateFormat('MMM d, h:mm a').format(selectedDateTime)}'),
+            ),
+          );
+        }
       }
     }
   }
@@ -229,13 +280,26 @@ class _TaskScreenState extends State<TaskScreen> {
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              trailing: Checkbox(
-                                value: selectedTasks[index],
-                                onChanged: (value) {
-                                  setState(() {
-                                    selectedTasks[index] = value!;
-                                  });
-                                },
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.notifications),
+                                    onPressed: () => _showReminderDialog(
+                                      DateTime.now().millisecondsSinceEpoch.toString(),
+                                      tasks[index],
+                                    ),
+                                    tooltip: 'Set Reminder',
+                                  ),
+                                  Checkbox(
+                                    value: selectedTasks[index],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        selectedTasks[index] = value!;
+                                      });
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
                           ),
