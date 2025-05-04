@@ -174,30 +174,44 @@ class NotificationService {
   }
 
   // Send task notification
-  Future<void> sendTaskNotification({
-    required String userId,
-    required String taskId,
-    required String title,
-    required String body,
-    Map<String, dynamic>? data,
-  }) async {
-    final notification = {
-      'title': title,
-      'body': body,
-      'timestamp': FieldValue.serverTimestamp(),
-      'isRead': false,
-      'type': 'task',
-      'data': {
-        'taskId': taskId,
-        ...?data,
-      },
-    };
+  Future<void> sendTaskNotification(String title, String body, List<String> tasks) async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return;
 
-    await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('notifications')
-        .add(notification);
+    try {
+      // Save notification to Firestore
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .add({
+            'title': title,
+            'body': body,
+            'timestamp': FieldValue.serverTimestamp(),
+            'isRead': false,
+            'type': 'task',
+            'data': {
+              'tasks': tasks,
+            },
+          });
+
+      // Get FCM token
+      final fcmToken = await _messaging.getToken();
+      if (fcmToken == null) return;
+
+      // Send push notification
+      await _messaging.sendMessage(
+        to: fcmToken,
+        data: {
+          'type': 'task',
+          'title': title,
+          'body': body,
+          'tasks': tasks.join(','),
+        },
+      );
+    } catch (e) {
+      print('Error sending notification: $e');
+    }
   }
 
   // Track activity
@@ -260,11 +274,9 @@ class NotificationService {
 
     // Send completion notification
     await sendTaskNotification(
-      userId: userId,
-      taskId: taskId,
-      title: 'Task Completed',
-      body: 'You have completed: $taskTitle',
-      data: {'status': 'completed'},
+      'Task Completed',
+      'You have completed: $taskTitle',
+      [taskId],
     );
 
     // Track activity

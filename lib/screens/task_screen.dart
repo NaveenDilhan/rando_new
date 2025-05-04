@@ -3,6 +3,7 @@ import 'package:animate_do/animate_do.dart';
 import 'package:lottie/lottie.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/openai_service.dart';
+import '../services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class TaskScreen extends StatefulWidget {
@@ -63,6 +64,14 @@ class _TaskScreenState extends State<TaskScreen> {
           'createdAt': Timestamp.now(),
         });
       }
+
+      // Send notification for followed tasks
+      final notificationService = NotificationService();
+      await notificationService.sendTaskNotification(
+        'New Tasks Added',
+        'You have ${tasks.length} new tasks to complete!',
+        tasks,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tasks saved successfully!')),
