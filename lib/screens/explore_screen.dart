@@ -13,15 +13,15 @@ class ExploreScreen extends StatefulWidget {
 
 class _ExploreScreenState extends State<ExploreScreen> {
   late final TextEditingController _searchController;
-  List<Map<String, dynamic>> categories = [];
-  List<Map<String, dynamic>> filteredCategories = [];
+  List<Map<String, dynamic>> subCategories = [];
+  List<Map<String, dynamic>> filteredSubCategories = [];
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController()..addListener(_filterCategories);
-    _fetchCategories();
+    _searchController = TextEditingController()..addListener(_filterSubCategories);
+    _fetchSubCategories();
   }
 
   @override
@@ -30,41 +30,58 @@ class _ExploreScreenState extends State<ExploreScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchCategories() async {
+  Future<void> _fetchSubCategories() async {
     try {
-      QuerySnapshot snapshot =
+      // Fetch all categories
+      QuerySnapshot categorySnapshot =
           await FirebaseFirestore.instance.collection('categories').get();
 
-      if (snapshot.docs.isNotEmpty) {
-        categories = snapshot.docs.map((doc) {
-          return {
-            'name': doc['name'],
-            'imageUrl': doc['imageUrl'] ?? '',
-          };
-        }).toList();
-        filteredCategories = List.from(categories);
+      List<Map<String, dynamic>> allSubCategories = [];
+
+      // For each category, fetch its sub-categories
+      for (var categoryDoc in categorySnapshot.docs) {
+        QuerySnapshot subCategorySnapshot = await FirebaseFirestore.instance
+            .collection('categories')
+            .doc(categoryDoc.id)
+            .collection('sub-categories')
+            .get();
+
+        if (subCategorySnapshot.docs.isNotEmpty) {
+          var subCats = subCategorySnapshot.docs.map((doc) {
+            return {
+              'name': doc['name'],
+              'imageUrl': doc['imageUrl'] ?? '',
+            };
+          }).toList();
+          allSubCategories.addAll(subCats);
+        }
+      }
+
+      if (allSubCategories.isNotEmpty) {
+        subCategories = allSubCategories;
+        filteredSubCategories = List.from(subCategories);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching categories: $e')),
+        SnackBar(content: Text('Error fetching sub-categories: $e')),
       );
     } finally {
       setState(() => isLoading = false);
     }
   }
 
-  void _filterCategories() {
+  void _filterSubCategories() {
     String query = _searchController.text.toLowerCase();
     setState(() {
-      filteredCategories = categories
-          .where((category) => category['name'].toLowerCase().contains(query))
+      filteredSubCategories = subCategories
+          .where((subCategory) => subCategory['name'].toLowerCase().contains(query))
           .toList();
     });
   }
 
-  void _generateFunFactAndTasks(String category) async {
+  void _generateFunFactAndTasks(String subCategory) async {
     try {
-      Map<String, dynamic> response = await OpenAIService().generateTasks(category);
+      Map<String, dynamic> response = await OpenAIService().generateTasks(subCategory);
       if (response.containsKey('error')) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(response['error'])),
@@ -74,7 +91,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => TaskScreen(category: category),
+          builder: (context) => TaskScreen(category: subCategory),
         ),
       );
     } catch (e) {
@@ -116,7 +133,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                labelText: 'Search Categories',
+                labelText: 'Search Skills',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10.0),
                 ),
@@ -130,11 +147,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       child: CircularProgressIndicator(),
                     ),
                   )
-                : filteredCategories.isEmpty
+                : filteredSubCategories.isEmpty
                     ? const Expanded(
                         child: Center(
                           child: Text(
-                            'No categories found',
+                            'No sub-categories found',
                             style: TextStyle(fontSize: 18, color: Color.fromARGB(255, 158, 158, 158)),
                           ),
                         ),
@@ -142,11 +159,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     : Flexible(
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
-                          itemCount: filteredCategories.length,
+                          itemCount: filteredSubCategories.length,
                           itemBuilder: (context, index) {
-                            var category = filteredCategories[index];
+                            var subCategory = filteredSubCategories[index];
                             return GestureDetector(
-                              onTap: () => _generateFunFactAndTasks(category['name']),
+                              onTap: () => _generateFunFactAndTasks(subCategory['name']),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 10.0),
                                 child: Card(
@@ -166,7 +183,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                         ClipRRect(
                                           borderRadius: BorderRadius.circular(15.0),
                                           child: CachedNetworkImage(
-                                            imageUrl: category['imageUrl'],
+                                            imageUrl: subCategory['imageUrl'],
                                             fit: BoxFit.cover,
                                             width: double.infinity,
                                             height: double.infinity,
@@ -185,7 +202,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                             child: Padding(
                                               padding: const EdgeInsets.all(8.0),
                                               child: Text(
-                                                category['name'],
+                                                subCategory['name'],
                                                 style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 22,
@@ -207,7 +224,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       ),
             const SizedBox(height: 20),
             const Text(
-              'Choose a category to explore and generate daily tasks!',
+              'Choose a skills to explore and generate daily tasks!',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey,
