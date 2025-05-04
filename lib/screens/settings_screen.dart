@@ -1,144 +1,132 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'auth_screen.dart';
 import '../theme_notifier.dart';
+import 'edit_profile_screen.dart';
+import 'change_password_screen.dart';
+import '../services/profile_service.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
-  Future<void> _handleLogout(BuildContext context) async {
-    final user = FirebaseAuth.instance.currentUser;
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
 
-    if (user != null) {
-      try {
-        // Update user status before logging out
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-          'logoutTime': FieldValue.serverTimestamp(),
-          'isOnline': false,
-        });
+class _SettingsScreenState extends State<SettingsScreen> {
+  final themeNotifier = ThemeNotifier();
+  final profileService = ProfileService();
+  bool notificationsEnabled = true;
+  bool isDarkMode = false;
 
-        // Sign out the user
-        await FirebaseAuth.instance.signOut();
+  @override
+  void initState() {
+    super.initState();
+    isDarkMode = themeNotifier.isDarkMode;
+  }
 
-        if (context.mounted) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const AuthScreen()),
-            (route) => false,
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Logout failed: $e')),
+  Future<void> handleLogout(BuildContext context) async {
+    try {
+      await profileService.updateOnlineStatus(false);
+      await FirebaseAuth.instance.signOut();
+      if (context.mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+          (_) => false,
         );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Logout failed: $e')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Listen to the theme state and notifications setting state
-    final themeNotifier = ThemeNotifier();
-    final bool isDarkMode = themeNotifier.isDarkMode;
-    final bool notificationsEnabled = true; // Replace with actual state for notifications
-
     return Scaffold(
+      backgroundColor: const Color(0xFF1A1A1A),
       appBar: AppBar(
         title: const Text("Settings"),
-        backgroundColor: const Color(0xFF000000), // Black background
+        backgroundColor: const Color(0xFF000000),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white), // Back button icon
-          onPressed: () {
-            Navigator.pop(context); // Navigate back to the previous screen
-          },
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Container(
-        color: const Color(0xFF1A1A1A), // Darker background for better contrast
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Settings",
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            const Text("Account", style: TextStyle(color: Colors.white, fontSize: 24)),
+            const SizedBox(height: 10),
+            ListTile(
+              title: const Text("Edit Profile", style: TextStyle(color: Colors.white)),
+              trailing: const Icon(Icons.arrow_forward, color: Colors.white),
+              tileColor: const Color(0xFF2A2A2A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
               ),
             ),
-            const SizedBox(height: 20),
-            // Notifications toggle
+            const SizedBox(height: 10),
+            ListTile(
+              title: const Text("Change Password", style: TextStyle(color: Colors.white)),
+              trailing: const Icon(Icons.arrow_forward, color: Colors.white),
+              tileColor: const Color(0xFF2A2A2A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+              ),
+            ),
+            const SizedBox(height: 30),
+            const Text("App Settings", style: TextStyle(color: Colors.white, fontSize: 24)),
+            const SizedBox(height: 10),
             ListTile(
               title: const Text("Notifications", style: TextStyle(color: Colors.white)),
               trailing: Switch(
-                value: notificationsEnabled, // Use actual notification setting
-                onChanged: (bool value) {
-                  // Handle notification toggle state change here
-                },
+                value: notificationsEnabled,
+                onChanged: (val) => setState(() => notificationsEnabled = val),
               ),
               tileColor: const Color(0xFF2A2A2A),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             const SizedBox(height: 10),
-            // Dark Mode toggle
             ListTile(
               title: const Text("Dark Mode", style: TextStyle(color: Colors.white)),
               trailing: Switch(
-                value: isDarkMode, // Use the actual dark mode state
-                onChanged: (bool value) {
-                  themeNotifier.toggleTheme(value); // Toggle theme
+                value: isDarkMode,
+                onChanged: (val) {
+                  themeNotifier.toggleTheme(val);
+                  setState(() => isDarkMode = val);
                 },
               ),
               tileColor: const Color(0xFF2A2A2A),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Light Mode toggle
-            ListTile(
-              title: const Text("Light Mode", style: TextStyle(color: Colors.white)),
-              trailing: Switch(
-                value: !isDarkMode, // Invert the value for light mode toggle
-                onChanged: (bool value) {
-                  themeNotifier.toggleTheme(!value); // Invert the value for dark mode
-                },
-              ),
-              tileColor: const Color(0xFF2A2A2A),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             const SizedBox(height: 20),
-            // Font Size Selector
-            const Text(
-              "Font Size",
-              style: TextStyle(color: Colors.white),
-            ),
+            const Text("Font Size", style: TextStyle(color: Colors.white)),
             DropdownButton<double>(
-              value: themeNotifier.fontSize, // Use the public getter for font size
+              value: themeNotifier.fontSize,
               items: const [
-                DropdownMenuItem(value: 14.0, child: Text("14", style: TextStyle(color: Colors.black))),
-                DropdownMenuItem(value: 16.0, child: Text("16", style: TextStyle(color: Colors.black))),
-                DropdownMenuItem(value: 18.0, child: Text("18", style: TextStyle(color: Colors.black))),
-                DropdownMenuItem(value: 20.0, child: Text("20", style: TextStyle(color: Colors.black))),
+                DropdownMenuItem(value: 14.0, child: Text("14")),
+                DropdownMenuItem(value: 16.0, child: Text("16")),
+                DropdownMenuItem(value: 18.0, child: Text("18")),
+                DropdownMenuItem(value: 20.0, child: Text("20")),
               ],
-              onChanged: (double? newValue) {
-                if (newValue != null) {
-                  themeNotifier.setFontSize(newValue); // Update font size
-                }
+              onChanged: (val) {
+                if (val != null) themeNotifier.setFontSize(val);
               },
-              dropdownColor: const Color(0xFF2A2A2A), // Dropdown background color
-              style: const TextStyle(color: Colors.white), // Dropdown text color
+              dropdownColor: Colors.grey[850],
+              style: const TextStyle(color: Colors.white),
             ),
-            const Spacer(),
-            // Logout Button
+            const SizedBox(height: 20),
             GestureDetector(
-              onTap: () => _handleLogout(context),
+              onTap: () => handleLogout(context),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 15),
@@ -149,10 +137,7 @@ class SettingsScreen extends StatelessWidget {
                 child: const Text(
                   'Logout',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.white),
                 ),
               ),
             ),

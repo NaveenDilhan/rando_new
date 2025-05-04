@@ -6,6 +6,7 @@ import 'task_manager_screen.dart';
 import 'habits_screen.dart';
 import 'achievements_screen.dart';
 import 'settings_screen.dart';
+import '../services/profile_service.dart'; // Import ProfileService
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -120,6 +121,7 @@ class ProfileScreen extends StatelessWidget {
 
     final email = user.email ?? "user@example.com";
     final username = email.split('@')[0];
+    final profileService = ProfileService();
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -182,7 +184,7 @@ class ProfileScreen extends StatelessWidget {
                   value: 'Habits',
                   child: Row(
                     children: const [
-                      Icon(Icons.list, color:Color.fromARGB(255, 224, 220, 220)),
+                      Icon(Icons.list, color: Color.fromARGB(255, 224, 220, 220)),
                       SizedBox(width: 10),
                       Text('Habits'),
                     ],
@@ -218,26 +220,66 @@ class ProfileScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.blueAccent,
-              child: Text(
-                username.isNotEmpty ? username[0].toUpperCase() : '',
-                style: const TextStyle(fontSize: 40, color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              "Welcome, $username",
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              email,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+            FutureBuilder<Map<String, dynamic>?>(
+              future: profileService.loadUserProfile(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const CircularProgressIndicator();
+                }
+                if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+                  return CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.blueAccent,
+                    child: Text(
+                      username.isNotEmpty ? username[0].toUpperCase() : '',
+                      style: const TextStyle(fontSize: 40, color: Colors.white),
+                    ),
+                  );
+                }
+
+                final profileData = snapshot.data!;
+                final profileImageUrl = profileData['profileImageUrl'] as String?;
+                final bio = profileData['bio'] as String? ?? '';
+
+                return Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Colors.blueAccent,
+                      backgroundImage: profileImageUrl != null
+                          ? NetworkImage(profileImageUrl)
+                          : null,
+                      child: profileImageUrl == null
+                          ? Text(
+                              username.isNotEmpty ? username[0].toUpperCase() : '',
+                              style: const TextStyle(fontSize: 40, color: Colors.white),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      "Welcome, $username",
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      email,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+                    ),
+                    if (bio.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        bio,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 40),
             const Divider(color: Colors.grey),

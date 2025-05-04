@@ -1,11 +1,12 @@
 import 'dart:io';
+import 'dart:convert'; // For jsonDecode
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'completed_achievements_screen.dart'; // Import the new screen
+import 'package:http/http.dart' as http; // For Cloudinary upload
+import 'completed_achievements_screen.dart'; // Your achievements screen
 
 class CreatePostScreen extends StatefulWidget {
   @override
@@ -20,7 +21,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool _isUploading = false;
   double _uploadProgress = 0.0;
 
-  // Request permissions for gallery, camera, and storage
+  // 🔧 Replace with your actual Cloudinary cloud name and preset
+  final String cloudinaryCloudName = 'dmajyc1zr'; // e.g. 'd123abc45'
+  final String cloudinaryUploadPreset = 'flutter_preset'; 
+
   Future<bool> _requestPermissions() async {
     PermissionStatus galleryAndStorageStatus = await Permission.storage.request();
     PermissionStatus cameraStatus = await Permission.camera.request();
@@ -50,7 +54,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  // Pick image from gallery
   Future<void> _pickImage() async {
     bool hasPermission = await _requestPermissions();
     if (!hasPermission) {
@@ -82,23 +85,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  // Upload image to Firebase Storage and get the URL
-  Future<String?> _uploadImage(File imageFile) async {
+  // 🔄 Replacing Firebase Storage with Cloudinary upload
+  Future<String?> _uploadImageToCloudinary(File imageFile) async {
     try {
-      final storageRef = FirebaseStorage.instance.ref().child('post_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
-      final uploadTask = storageRef.putFile(imageFile);
+      final uri = Uri.parse('https://api.cloudinary.com/v1_1/$cloudinaryCloudName/image/upload');
 
-      uploadTask.snapshotEvents.listen((taskSnapshot) {
-        setState(() {
-          _uploadProgress = taskSnapshot.bytesTransferred / taskSnapshot.totalBytes;
-        });
-      });
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['upload_preset'] = cloudinaryUploadPreset
+        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
 
-      final snapshot = await uploadTask.whenComplete(() {});
-      final imageUrl = await snapshot.ref.getDownloadURL();
-      return imageUrl;
+      final response = await request.send();
+
+      if (response.statusCode == 200) {
+        final responseData = await response.stream.bytesToString();
+        final jsonData = json.decode(responseData);
+        return jsonData['secure_url'];
+      } else {
+        print('Cloudinary upload failed: ${response.statusCode}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Image upload failed.')),
+        );
+        return null;
+      }
     } catch (e) {
-      print("Error uploading image: $e");
+      print('Cloudinary upload error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error uploading image. Please try again.')),
       );
@@ -106,7 +116,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  // Create a new post
   Future<void> _createPost() async {
     final title = _titleController.text;
     final content = _contentController.text;
@@ -133,7 +142,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     try {
       String? imageUrl;
       if (_image != null) {
-        imageUrl = await _uploadImage(_image!);
+        imageUrl = await _uploadImageToCloudinary(_image!);
         print('Image uploaded, URL: $imageUrl');
       }
 
@@ -221,9 +230,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             _isUploading
                 ? Column(
                     children: [
-                      LinearProgressIndicator(value: _uploadProgress),
+                      LinearProgressIndicator(),
                       SizedBox(height: 10),
-                      Text("${(_uploadProgress * 100).toStringAsFixed(0)}% uploaded"),
+                      Text("Uploading..."),
                     ],
                   )
                 : ElevatedButton(
