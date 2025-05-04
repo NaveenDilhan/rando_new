@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'completed_achievements_screen.dart'; // Import the new screen
 
 class CreatePostScreen extends StatefulWidget {
   @override
@@ -21,15 +22,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   // Request permissions for gallery, camera, and storage
   Future<bool> _requestPermissions() async {
-    PermissionStatus galleryAndStorageStatus = await Permission.storage.request();  // Grouped storage permission
+    PermissionStatus galleryAndStorageStatus = await Permission.storage.request();
     PermissionStatus cameraStatus = await Permission.camera.request();
 
-    // If the device is Android and running on Android 10+ with Scoped Storage, request manage external storage
     if (Platform.isAndroid && !(await Permission.manageExternalStorage.isGranted)) {
       await Permission.manageExternalStorage.request();
     }
 
-    // Debugging console messages to identify missing permissions
     print('Storage (Gallery) Permission: ${galleryAndStorageStatus.isGranted ? "Granted" : "Denied"}');
     print('Camera Permission: ${cameraStatus.isGranted ? "Granted" : "Denied"}');
     if (Platform.isAndroid) {
@@ -46,7 +45,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(errorMessage.isEmpty ? 'Permissions denied.' : errorMessage),
       ));
-      await openAppSettings();  // Opens the app info screen to request manual permissions.
+      await openAppSettings();
       return false;
     }
   }
@@ -89,7 +88,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final storageRef = FirebaseStorage.instance.ref().child('post_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
       final uploadTask = storageRef.putFile(imageFile);
 
-      // Show progress of the upload
       uploadTask.snapshotEvents.listen((taskSnapshot) {
         setState(() {
           _uploadProgress = taskSnapshot.bytesTransferred / taskSnapshot.totalBytes;
@@ -135,29 +133,27 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     try {
       String? imageUrl;
       if (_image != null) {
-        imageUrl = await _uploadImage(_image!); // Upload image if selected
-        print('Image uploaded, URL: $imageUrl');  // Debugging line
+        imageUrl = await _uploadImage(_image!);
+        print('Image uploaded, URL: $imageUrl');
       }
 
       final postData = {
         'title': title,
         'content': content,
-        'imageUrl': imageUrl, // Save the image URL if there's an image
-        'createdAt': FieldValue.serverTimestamp(), // Store the timestamp using Firestore's server timestamp
-        'userId': user.uid, // Associate post with the current user
+        'imageUrl': imageUrl,
+        'createdAt': FieldValue.serverTimestamp(),
+        'userId': user.uid,
       };
 
-      // Add post data to Firestore
       await FirebaseFirestore.instance.collection('posts').add(postData);
-      print('Post created successfully'); // Debugging line
+      print('Post created successfully');
 
-      // Clear form after posting
       _titleController.clear();
       _contentController.clear();
       setState(() {
         _image = null;
         _isUploading = false;
-        _uploadProgress = 0.0;  // Reset upload progress
+        _uploadProgress = 0.0;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -180,7 +176,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       appBar: AppBar(
         title: Text("Create Post"),
       ),
-      body: SingleChildScrollView( // Wrap the entire body with a SingleChildScrollView
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,10 +194,25 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               maxLines: 5,
             ),
             SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _pickImage,
-              icon: Icon(Icons.image),
-              label: Text("Pick Image"),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _pickImage,
+                  icon: Icon(Icons.image),
+                  label: Text("Pick Image"),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CompletedAchievementsScreen()),
+                    );
+                  },
+                  icon: Icon(Icons.emoji_events),
+                  label: Text("Achievements"),
+                ),
+              ],
             ),
             SizedBox(height: 20),
             if (_image != null)
@@ -210,7 +221,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             _isUploading
                 ? Column(
                     children: [
-                      LinearProgressIndicator(value: _uploadProgress), // Show progress indicator
+                      LinearProgressIndicator(value: _uploadProgress),
                       SizedBox(height: 10),
                       Text("${(_uploadProgress * 100).toStringAsFixed(0)}% uploaded"),
                     ],
