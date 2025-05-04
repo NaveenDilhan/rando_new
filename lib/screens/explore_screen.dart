@@ -32,13 +32,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   Future<void> _fetchSubCategories() async {
     try {
-      // Fetch all categories
       QuerySnapshot categorySnapshot =
           await FirebaseFirestore.instance.collection('categories').get();
 
       List<Map<String, dynamic>> allSubCategories = [];
 
-      // For each category, fetch its sub-categories
       for (var categoryDoc in categorySnapshot.docs) {
         QuerySnapshot subCategorySnapshot = await FirebaseFirestore.instance
             .collection('categories')
@@ -57,21 +55,30 @@ class _ExploreScreenState extends State<ExploreScreen> {
         }
       }
 
+      if (!mounted) return;
+
       if (allSubCategories.isNotEmpty) {
-        subCategories = allSubCategories;
-        filteredSubCategories = List.from(subCategories);
+        setState(() {
+          subCategories = allSubCategories;
+          filteredSubCategories = List.from(subCategories);
+        });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching sub-categories: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching sub-categories: $e')),
+        );
+      }
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
   void _filterSubCategories() {
     String query = _searchController.text.toLowerCase();
+    if (!mounted) return;
     setState(() {
       filteredSubCategories = subCategories
           .where((subCategory) => subCategory['name'].toLowerCase().contains(query))
@@ -82,12 +89,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
   void _generateFunFactAndTasks(String subCategory) async {
     try {
       Map<String, dynamic> response = await OpenAIService().generateTasks(subCategory);
+      if (!mounted) return;
+
       if (response.containsKey('error')) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(response['error'])),
         );
         return;
       }
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -95,9 +105,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating tasks: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating tasks: $e')),
+        );
+      }
     }
   }
 

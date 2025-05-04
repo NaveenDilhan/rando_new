@@ -147,7 +147,7 @@ class _CompletedAchievementsScreenState extends State<CompletedAchievementsScree
                           Row(
                             children: [
                               Lottie.asset(
-                                'assets/animations/trophy.json',
+                                'assets/animations/achievement.json',
                                 width: 30,
                                 height: 30,
                               ),
@@ -312,7 +312,7 @@ class _CompletedAchievementsScreenState extends State<CompletedAchievementsScree
           mainAxisSize: MainAxisSize.min,
           children: [
             Lottie.asset(
-              'assets/animations/trophy.json',
+              'assets/animations/achievement.json',
               width: 80,
               height: 80,
             ),

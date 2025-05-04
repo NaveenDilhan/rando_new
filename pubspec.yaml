@@ -48,4 +48,6 @@ flutter:
     - assets/animations/login_background.json
     - assets/animations/trophy.json
     - assets/animations/leaderboard.json
-
+    - assets/animations/empty.json
+    - assets/animations/achievement.json
+    - assets/animations/loading.json
