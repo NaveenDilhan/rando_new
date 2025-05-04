@@ -1,2 +1,0 @@
-C:/Users/indur/Desktop/rando_new/android/app/.cxx/Debug/2a523i3s/x86_64/CMakeFiles/edit_cache.dir
-C:/Users/indur/Desktop/rando_new/android/app/.cxx/Debug/2a523i3s/x86_64/CMakeFiles/rebuild_cache.dir
