@@ -89,7 +89,7 @@ class MyApp extends StatelessWidget {
       builder: (context, theme, child) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Task & Fun Fact Generator',
+          title: 'Rando',
           theme: theme,
           home: const AuthWrapper(),
           routes: {
