@@ -1,0 +1,2 @@
+C:/Users/indur/Desktop/rando_new/android/app/.cxx/Debug/2a523i3s/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/indur/Desktop/rando_new/android/app/.cxx/Debug/2a523i3s/armeabi-v7a/CMakeFiles/rebuild_cache.dir

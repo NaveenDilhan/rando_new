@@ -3,7 +3,9 @@ import 'package:animate_do/animate_do.dart';
 import 'package:lottie/lottie.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/openai_service.dart';
+import '../services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class TaskScreen extends StatefulWidget {
   final String category;
@@ -19,6 +21,7 @@ class _TaskScreenState extends State<TaskScreen> {
   bool isLoading = true;
   List<bool> selectedTasks = [];
   List<String> tasks = [];
+  final NotificationService _notificationService = NotificationService();
 
   @override
   void initState() {
@@ -43,34 +46,127 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   Future<void> saveSelectedTasks(List<String> tasks) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to save tasks')),
-      );
-      return;
-    }
-
     try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return;
+
       final userTasksRef = FirebaseFirestore.instance
           .collection('users')
-          .doc(user.uid)
+          .doc(userId)
           .collection('tasks');
 
       for (var task in tasks) {
-        await userTasksRef.add({
+        final taskDoc = await userTasksRef.add({
           'task': task,
+          'category': widget.category,
           'createdAt': Timestamp.now(),
+          'status': 'pending',
         });
+
+        // Schedule default reminder for 24 hours from now
+        await _notificationService.scheduleTaskReminder(
+          userId: userId,
+          taskId: taskDoc.id,
+          taskTitle: task,
+          reminderTime: DateTime.now().add(const Duration(hours: 24)),
+        );
+
+        // Send notification for new task
+        await _notificationService.sendTaskNotification(
+          userId: userId,
+          taskId: taskDoc.id,
+          title: 'New Task Added',
+          body: 'You have a new task: $task',
+          data: {'category': widget.category},
+        );
+
+        // Track activity
+        await _notificationService.trackActivity(
+          userId: userId,
+          type: 'task_creation',
+          description: 'Created new task: $task',
+          metadata: {'category': widget.category},
+        );
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tasks saved successfully!')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tasks saved successfully!')),
+        );
+      }
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save tasks')),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to save tasks')),
+        );
+      }
+    }
+  }
+
+  Future<void> completeTask(String taskId, String taskTitle) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    try {
+      await _notificationService.completeTask(
+        userId: userId,
+        taskId: taskId,
+        taskTitle: taskTitle,
       );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Task marked as completed!')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to complete task')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showReminderDialog(String taskId, String taskTitle) async {
+    final now = DateTime.now();
+    final initialTime = now.add(const Duration(hours: 24));
+    
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initialTime),
+    );
+
+    if (pickedTime != null) {
+      final selectedDateTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+
+      if (selectedDateTime.isBefore(now)) {
+        selectedDateTime.add(const Duration(days: 1));
+      }
+
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        await _notificationService.scheduleTaskReminder(
+          userId: userId,
+          taskId: taskId,
+          taskTitle: taskTitle,
+          reminderTime: selectedDateTime,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Reminder set for ${DateFormat('MMM d, h:mm a').format(selectedDateTime)}'),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -95,7 +191,15 @@ class _TaskScreenState extends State<TaskScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("${widget.category} Tasks")),
+      appBar: AppBar(
+        title: Text("${widget.category} Tasks"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: regenerateTasks,
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           FutureBuilder<Map<String, dynamic>>(
@@ -114,82 +218,108 @@ class _TaskScreenState extends State<TaskScreen> {
                 selectedTasks = List.generate(tasks.length, (index) => false);
               }
 
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    FadeInDown(
-                      duration: const Duration(milliseconds: 800),
-                      child: Text(
-                        "Category: ${widget.category}",
-                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    FadeInLeft(
-                      duration: const Duration(milliseconds: 800),
-                      child: Text(
-                        "Fun Fact: $fact",
-                        style: const TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: tasks.length,
-                        itemBuilder: (context, index) {
-                          return FadeInUp(
-                            delay: Duration(milliseconds: 300 * index),
-                            child: Card(
-                              margin: const EdgeInsets.symmetric(vertical: 10),
-                              elevation: 6,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                              child: ListTile(
-                                leading: Lottie.asset(
-                                  'assets/task_icon.json',
-                                  width: 40,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      const Icon(Icons.task, size: 40, color: Colors.blue),
-                                ),
-                                title: Text(
-                                  tasks[index],
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                                ),
-                                trailing: Checkbox(
-                                  value: selectedTasks[index],
-                                  onChanged: (value) {
-                                    setState(() {
-                                      selectedTasks[index] = value!;
-                                    });
-                                  },
-                                ),
+              return Column(
+                children: [
+                  if (fact != null) ...[
+                    Card(
+                      margin: const EdgeInsets.all(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Fun Fact",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          );
-                        },
+                            const SizedBox(height: 8),
+                            Text(fact),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: regenerateTasks,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text("Regenerate"),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: () => followTasks(tasks),
-                          icon: const Icon(Icons.favorite),
-                          label: const Text("Follow"),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
-                        ),
-                      ],
-                    ),
                   ],
-                ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      "Select Tasks to Follow",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: tasks.length,
+                      itemBuilder: (context, index) {
+                        return FadeInUp(
+                          delay: Duration(milliseconds: 300 * index),
+                          child: Card(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            elevation: 6,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: ListTile(
+                              leading: Lottie.asset(
+                                'assets/task_icon.json',
+                                width: 40,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(Icons.task, size: 40, color: Colors.blue),
+                              ),
+                              title: Text(
+                                tasks[index],
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.notifications),
+                                    onPressed: () => _showReminderDialog(
+                                      DateTime.now().millisecondsSinceEpoch.toString(),
+                                      tasks[index],
+                                    ),
+                                    tooltip: 'Set Reminder',
+                                  ),
+                                  Checkbox(
+                                    value: selectedTasks[index],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        selectedTasks[index] = value!;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ElevatedButton.icon(
+                      onPressed: () => followTasks(tasks),
+                      icon: const Icon(Icons.favorite),
+                      label: const Text("Follow Selected Tasks"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple,
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
           ),

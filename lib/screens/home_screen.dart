@@ -5,10 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
 import '../services/openai_service.dart';
 import 'task_screen.dart';
-import 'user_profile_screen.dart'; // Import the new UserProfileScreen
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -59,12 +57,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
 
     try {
       DocumentSnapshot snapshot =
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
       if (snapshot.exists && mounted) {
         setState(() {
@@ -112,7 +110,6 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         feedItems = snapshot.docs.map((doc) {
           return {
-            'id': doc.id,
             'title': doc['title'] ?? '',
             'content': doc['content'] ?? '',
             'imageUrl': doc['imageUrl'] ?? '',
@@ -170,80 +167,6 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
-  }
-
-  Future<void> _toggleLike(String postId, String userId, bool isLiked) async {
-    final likeRef = FirebaseFirestore.instance
-        .collection('posts')
-        .doc(postId)
-        .collection('likes')
-        .doc(userId);
-
-    try {
-      if (isLiked) {
-        await likeRef.delete();
-      } else {
-        await likeRef.set({
-          'likedAt': Timestamp.now(),
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating like: $e')),
-      );
-    }
-  }
-
-  Future<void> _addComment(BuildContext context, String postId, String userId, String username) async {
-    final commentController = TextEditingController();
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Comment'),
-        content: TextField(
-          controller: commentController,
-          decoration: const InputDecoration(hintText: 'Enter your comment'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              if (commentController.text.trim().isNotEmpty) {
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('posts')
-                      .doc(postId)
-                      .collection('comments')
-                      .add({
-                    'userId': userId,
-                    'username': username,
-                    'content': commentController.text.trim(),
-                    'createdAt': Timestamp.now(),
-                  });
-                  Navigator.pop(context);
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error adding comment: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Submit'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _sharePost(String title, String content, String? imageUrl) {
-    String shareText = '$title\n$content';
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      shareText += '\nImage: $imageUrl';
-    }
-    Share.share(shareText, subject: 'Check out this post!');
   }
 
   @override
@@ -392,7 +315,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: FadeInLeft(
                     duration: const Duration(milliseconds: 500),
                     child: GestureDetector(
-                      onTap: () => _generateFunFactAndTasks(category['name']),
+                      onTap: () =>
+                          _generateFunFactAndTasks(category['name']),
                       child: _SkillCategoryCard(category),
                     ),
                   ),
@@ -403,9 +327,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFeed() {
-    final user = FirebaseAuth.instance.currentUser;
-    final username = user?.email?.split('@')[0] ?? 'Anonymous';
-
     return Column(
       children: feedItems.map((feed) {
         return FutureBuilder<Map<String, dynamic>?>(
@@ -416,7 +337,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? "${userData['firstName']} ${userData['lastName']}"
                 : 'Anonymous';
             final email = userData?['email'] ?? '';
-
             return Container(
               margin: const EdgeInsets.only(bottom: 20),
               padding: const EdgeInsets.all(12),
@@ -427,70 +347,46 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => UserProfileScreen(userId: feed['userId']),
-                        ),
-                      );
-                    },
-                    child: Row(
-                      children: [
-                        const CircleAvatar(
-                          backgroundImage:
-                              AssetImage('assets/profile_placeholder.png'),
-                          radius: 20,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                name,
+                  Row(
+                    children: [
+                      const CircleAvatar(
+                        backgroundImage:
+                            AssetImage('assets/profile_placeholder.png'),
+                        radius: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name,
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                email,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white)),
+                            Text(email,
                                 style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
-                                ),
+                                    color: Colors.grey, fontSize: 12)),
+                            if (feed['createdAt'] != null)
+                              Text(
+                                DateFormat('MMM d, y • h:mm a')
+                                    .format(feed['createdAt'].toDate()),
+                                style: const TextStyle(
+                                    color: Colors.grey, fontSize: 12),
                               ),
-                              if (feed['createdAt'] != null)
-                                Text(
-                                  DateFormat('MMM d, y • h:mm a')
-                                      .format(feed['createdAt'].toDate()),
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                            ],
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    feed['title'],
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                  ),
+                  Text(feed['title'],
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.white)),
                   const SizedBox(height: 4),
-                  Text(
-                    feed['content'],
-                    style: const TextStyle(color: Colors.white70),
-                  ),
+                  Text(feed['content'],
+                      style: const TextStyle(color: Colors.white70)),
                   if (feed['imageUrl'].isNotEmpty)
                     Container(
                       margin: const EdgeInsets.only(top: 10),
@@ -498,127 +394,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
                         image: DecorationImage(
-                          image: CachedNetworkImageProvider(feed['imageUrl']),
+                          image: NetworkImage(feed['imageUrl']),
                           fit: BoxFit.cover,
                         ),
                       ),
                     ),
-                  const SizedBox(height: 10),
-                  StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('posts')
-                        .doc(feed['id'])
-                        .collection('likes')
-                        .snapshots(),
-                    builder: (context, likeSnapshot) {
-                      if (likeSnapshot.connectionState == ConnectionState.waiting) {
-                        return const SizedBox.shrink();
-                      }
-                      final likes = likeSnapshot.data?.docs ?? [];
-                      final isLiked = user != null && likes.any((like) => like.id == user.uid);
-                      final likeCount = likes.length;
-
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
-                                  color: isLiked ? Colors.blue : Colors.white,
-                                ),
-                                onPressed: user == null
-                                    ? null
-                                    : () => _toggleLike(feed['id'], user.uid, isLiked),
-                              ),
-                              Text(
-                                '$likeCount',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.comment, color: Colors.white),
-                            onPressed: user == null
-                                ? null
-                                : () => _addComment(context, feed['id'], user.uid, username),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.share, color: Colors.white),
-                            onPressed: () => _sharePost(
-                              feed['title'],
-                              feed['content'],
-                              feed['imageUrl'],
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('posts')
-                        .doc(feed['id'])
-                        .collection('comments')
-                        .orderBy('createdAt', descending: true)
-                        .snapshots(),
-                    builder: (context, commentSnapshot) {
-                      if (commentSnapshot.connectionState == ConnectionState.waiting) {
-                        return const SizedBox.shrink();
-                      }
-                      final comments = commentSnapshot.data?.docs ?? [];
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: comments.map((comment) {
-                          final commentData = comment.data() as Map<String, dynamic>;
-                          final commentUsername = commentData['username'] ?? 'Unknown';
-                          final commentContent = commentData['content'] ?? '';
-                          final commentTimestamp = (commentData['createdAt'] as Timestamp).toDate();
-                          final formattedCommentTime =
-                              DateFormat('MMM d, y').format(commentTimestamp);
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 5),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CircleAvatar(
-                                  radius: 15,
-                                  backgroundColor: Colors.blueAccent,
-                                  child: Text(
-                                    commentUsername.isNotEmpty ? commentUsername[0].toUpperCase() : '',
-                                    style: const TextStyle(fontSize: 12, color: Colors.white),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '$commentUsername ($formattedCommentTime)',
-                                        style: const TextStyle(
-                                          color: Colors.white54,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        commentContent,
-                                        style: const TextStyle(color: Colors.white),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
                 ],
               ),
             );
