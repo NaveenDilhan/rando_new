@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
+import 'dart:async';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -12,6 +14,7 @@ class NotificationService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final Map<String, Timer> _taskReminders = {};
 
   // Initialize notification service
   Future<void> initialize() async {
@@ -20,6 +23,21 @@ class NotificationService {
     const iosSettings = DarwinInitializationSettings();
     const initSettings = InitializationSettings(android: androidSettings, iOS: iosSettings);
     await _localNotifications.initialize(initSettings);
+
+    // Create notification channel for Android
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'task_reminders',
+      'Task Reminders',
+      description: 'Reminders for your tasks',
+      importance: Importance.high,
+      showBadge: true,
+      enableVibration: true,
+      enableLights: true,
+    );
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
 
     // Request permission for notifications
     NotificationSettings settings = await _messaging.requestPermission(
@@ -49,22 +67,98 @@ class NotificationService {
     }
   }
 
+  // Show notification
+  Future<void> showNotification({
+    required String title,
+    required String body,
+    String? payload,
+    String? type,
+    Map<String, dynamic>? data,
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      'task_reminders',
+      'Task Reminders',
+      channelDescription: 'Reminders for your tasks',
+      importance: Importance.max,
+      priority: Priority.high,
+      showWhen: true,
+      enableVibration: true,
+      enableLights: true,
+      color: Colors.blue,
+      ongoing: false,
+      autoCancel: true,
+      showProgress: false,
+      playSound: true,
+      ticker: 'Task Reminder',
+      visibility: NotificationVisibility.public,
+      fullScreenIntent: true,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      interruptionLevel: InterruptionLevel.timeSensitive,
+    );
+
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _localNotifications.show(
+      DateTime.now().millisecond,
+      title,
+      body,
+      notificationDetails,
+      payload: payload,
+    );
+
+    // Save to Firestore for persistence
+    await _saveNotificationToFirestore(
+      title: title,
+      body: body,
+      type: type ?? 'general',
+      data: data,
+    );
+  }
+
+  // Schedule task reminder
+  Future<void> scheduleTaskReminder(String taskId, String taskTitle) async {
+    // Cancel any existing reminder for this task
+    _taskReminders[taskId]?.cancel();
+    
+    // Schedule new reminder after 5 minutes
+    _taskReminders[taskId] = Timer(const Duration(minutes: 300), () async {
+      await showNotification(
+        title: 'Task Reminder',
+        body: 'Don\'t forget to: $taskTitle',
+        payload: taskId,
+        type: 'task_reminder',
+        data: {'taskId': taskId},
+      );
+    });
+  }
+
   // Handle background messages
   static Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     print('Handling a background message: ${message.messageId}');
     
-    // Create a notification channel for Android
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'high_importance_channel',
-      'High Importance Notifications',
-      description: 'This channel is used for important notifications.',
-      importance: Importance.high,
-    );
-
     // Initialize local notifications
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
     
+    // Create notification channel for Android
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'task_reminders',
+      'Task Reminders',
+      description: 'Reminders for your tasks',
+      importance: Importance.high,
+      showBadge: true,
+      enableVibration: true,
+      enableLights: true,
+    );
+
     await flutterLocalNotificationsPlugin.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
@@ -72,56 +166,88 @@ class NotificationService {
       ),
     );
 
-    // Create notification details
-    final notificationDetails = NotificationDetails(
-      android: AndroidNotificationDetails(
-        channel.id,
-        channel.name,
-        channelDescription: channel.description,
-        importance: Importance.high,
-        priority: Priority.high,
-      ),
-      iOS: const DarwinNotificationDetails(),
-    );
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
 
     // Show the notification
     await flutterLocalNotificationsPlugin.show(
       DateTime.now().millisecond,
-      message.notification?.title ?? 'New Notification',
-      message.notification?.body ?? 'You have a new message',
-      notificationDetails,
+      message.notification?.title ?? 'Task Reminder',
+      message.notification?.body ?? 'You have a task to complete',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'task_reminders',
+          'Task Reminders',
+          channelDescription: 'Reminders for your tasks',
+          importance: Importance.high,
+          priority: Priority.high,
+          showWhen: true,
+          enableVibration: true,
+          enableLights: true,
+          color: Colors.blue,
+          ongoing: false,
+          autoCancel: true,
+          showProgress: false,
+          playSound: true,
+          ticker: 'Task Reminder',
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          interruptionLevel: InterruptionLevel.timeSensitive,
+        ),
+      ),
+      payload: message.data['taskId'],
     );
   }
 
   // Handle foreground messages
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     print('Handling a foreground message: ${message.messageId}');
-
-    // Create notification details
-    final notificationDetails = NotificationDetails(
-      android: const AndroidNotificationDetails(
-        'high_importance_channel',
-        'High Importance Notifications',
-        importance: Importance.high,
-        priority: Priority.high,
-      ),
-      iOS: const DarwinNotificationDetails(),
+    
+    // Show notification immediately
+    await showNotification(
+      title: message.notification?.title ?? 'New Notification',
+      body: message.notification?.body ?? 'You have a new message',
+      payload: message.data['taskId'],
+      type: 'firebase',
+      data: message.data,
     );
 
-    // Show the notification
+    // Also show a local notification to ensure it appears in the status bar
     await _localNotifications.show(
       DateTime.now().millisecond,
       message.notification?.title ?? 'New Notification',
       message.notification?.body ?? 'You have a new message',
-      notificationDetails,
-    );
-
-    // Save the notification to Firestore
-    await _saveNotificationToFirestore(
-      title: message.notification?.title ?? 'New Notification',
-      body: message.notification?.body ?? 'You have a new message',
-      type: 'firebase',
-      data: message.data,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'task_reminders',
+          'Task Reminders',
+          channelDescription: 'Reminders for your tasks',
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+          enableVibration: true,
+          enableLights: true,
+          color: Colors.blue,
+          ongoing: false,
+          autoCancel: true,
+          showProgress: false,
+          playSound: true,
+          ticker: 'Task Reminder',
+          visibility: NotificationVisibility.public,
+          fullScreenIntent: true,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          interruptionLevel: InterruptionLevel.timeSensitive,
+        ),
+      ),
+      payload: message.data['taskId'],
     );
   }
 
@@ -195,20 +321,18 @@ class NotificationService {
             },
           });
 
-      // Get FCM token
-      final fcmToken = await _messaging.getToken();
-      if (fcmToken == null) return;
-
-      // Send push notification
-      await _messaging.sendMessage(
-        to: fcmToken,
-        data: {
-          'type': 'task',
-          'title': title,
-          'body': body,
-          'tasks': tasks.join(','),
-        },
+      // Show immediate notification
+      await showNotification(
+        title: title,
+        body: body,
+        type: 'task',
+        data: {'tasks': tasks},
       );
+
+      // Schedule reminders for each task
+      for (var task in tasks) {
+        await scheduleTaskReminder(DateTime.now().millisecondsSinceEpoch.toString(), task);
+      }
     } catch (e) {
       print('Error sending notification: $e');
     }
