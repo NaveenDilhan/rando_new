@@ -13,6 +13,7 @@ import 'screens/create_post_screen.dart';  // Import the Create Post Screen
 import 'widgets/bottom_nav.dart';
 import 'firebase_options.dart';
 import 'theme_notifier.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,11 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     print('✅ Firebase initialized successfully!');
+
+    // Initialize Notification Service
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+    print('✅ Notification service initialized successfully!');
 
     // Firebase Cloud Messaging (FCM) initialization
     await initializeFCM();
