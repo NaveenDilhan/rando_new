@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../services/openai_service.dart';
 import 'task_screen.dart';
-import 'user_profile_screen.dart'; // Import the new UserProfileScreen
+import 'user_profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> feedItems = [];
   Map<String, dynamic>? currentUserData;
   bool isLoading = true;
+  String? errorMessage;
 
   @override
   void initState() {
@@ -34,11 +35,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initializeData() async {
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
     await _fetchUserData();
     await _fetchSkillCategories();
     await _fetchFeedItems();
-    if (mounted) setState(() => isLoading = false);
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
   }
 
   String _getGreeting() {
@@ -60,19 +66,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchUserData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      setState(() {
+        errorMessage = 'No user logged in';
+      });
+      return;
+    }
 
     try {
-      DocumentSnapshot snapshot =
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      DocumentSnapshot snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
       if (snapshot.exists && mounted) {
         setState(() {
           currentUserData = snapshot.data() as Map<String, dynamic>;
         });
+      } else {
+        setState(() {
+          errorMessage = 'User data not found';
+        });
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          errorMessage = 'Error fetching user info: $e';
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error fetching user info: $e')),
         );
@@ -81,20 +101,104 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchSkillCategories() async {
+    if (currentUserData == null || !currentUserData!.containsKey('interestField')) {
+      if (mounted) {
+        setState(() {
+          errorMessage = 'User interests not found';
+        });
+      }
+      return;
+    }
+
     try {
-      QuerySnapshot snapshot =
-          await FirebaseFirestore.instance.collection('categories').get();
+      final userInterests = List<String>.from(currentUserData!['interestField'] ?? []);
+      
+      if (userInterests.isEmpty) {
+        if (mounted) {
+          setState(() {
+            errorMessage = 'No interests specified for user';
+          });
+        }
+        return;
+      }
+
+      print('User interests: $userInterests'); // Debug: Log user interests
+
+      List<Map<String, dynamic>> tempCategories = [];
+      
+      // Fetch all categories that match any of the user's interests
+      QuerySnapshot categorySnapshot = await FirebaseFirestore.instance
+          .collection('categories')
+          .where('name', whereIn: userInterests)
+          .get();
+
+      if (categorySnapshot.docs.isEmpty) {
+        if (mounted) {
+          setState(() {
+            errorMessage = 'No matching categories found for user interests: $userInterests';
+          });
+        }
+        return;
+      }
+
+      print('Found ${categorySnapshot.docs.length} matching categories'); // Debug: Log number of categories
+
+      // Iterate through each matching category to fetch its sub-categories
+      for (var doc in categorySnapshot.docs) {
+        String categoryName = doc['name'] ?? 'Unknown';
+        String categoryId = doc.id;
+        print('Processing category: $categoryName (ID: $categoryId)'); // Debug: Log category details
+
+        QuerySnapshot subCategoriesSnapshot = await FirebaseFirestore.instance
+            .collection('categories')
+            .doc(categoryId)
+            .collection('sub-categories')
+            .get();
+
+        if (subCategoriesSnapshot.docs.isEmpty) {
+          print('No sub-categories found for category: $categoryName'); // Debug: Log empty sub-categories
+          if (mounted) {
+            setState(() {
+              errorMessage = 'No sub-categories found for category: $categoryName';
+            });
+          }
+          // Add a fallback sub-category to avoid empty states
+          tempCategories.add({
+            'name': '$categoryName (General)',
+            'imageUrl': 'https://via.placeholder.com/150', // Fallback image
+            'parentCategory': categoryName,
+          });
+          continue;
+        }
+
+        print('Found ${subCategoriesSnapshot.docs.length} sub-categories for $categoryName'); // Debug: Log sub-category count
+        for (var subDoc in subCategoriesSnapshot.docs) {
+          print('Sub-category: ${subDoc['name']}'); // Debug: Log each sub-category
+        }
+
+        tempCategories.addAll(subCategoriesSnapshot.docs.map((subDoc) {
+          return {
+            'name': subDoc['name'] ?? 'Unnamed Sub-category',
+            'imageUrl': subDoc['imageUrl'] ?? 'https://via.placeholder.com/150',
+            'parentCategory': categoryName,
+          };
+        }).toList());
+      }
 
       if (mounted) {
-        skillCategories = snapshot.docs.map((doc) {
-          return {
-            'name': doc['name'] ?? '',
-            'imageUrl': doc['imageUrl'] ?? '',
-          };
-        }).toList();
+        setState(() {
+          skillCategories = tempCategories;
+          if (tempCategories.isEmpty) {
+            errorMessage = 'No sub-categories found for any user interests';
+          }
+        });
       }
     } catch (e) {
+      print('Error fetching skill categories: $e'); // Debug: Log error
       if (mounted) {
+        setState(() {
+          errorMessage = 'Error fetching skill categories: $e';
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error fetching skill categories: $e')),
         );
@@ -123,6 +227,9 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          errorMessage = 'Error fetching feed items: $e';
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error fetching feed items: $e')),
         );
@@ -132,19 +239,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<Map<String, dynamic>?> _getUserDetails(String uid) async {
     try {
-      DocumentSnapshot snapshot =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      DocumentSnapshot snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       if (snapshot.exists) {
         return snapshot.data() as Map<String, dynamic>;
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching user details: $e')),
+        );
+      }
+    }
     return null;
   }
 
-  void _generateFunFactAndTasks(String category) async {
+  // Generate tasks for a specific sub-category
+  void _generateFunFactAndTasks(String subCategory) async {
     try {
       Map<String, dynamic> response =
-          await OpenAIService().generateTasks(category);
+          await OpenAIService().generateTasks(subCategory);
 
       if (response.containsKey('error')) {
         if (mounted) {
@@ -159,14 +275,14 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => TaskScreen(category: category),
+            builder: (context) => TaskScreen(category: subCategory),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating tasks: $e')),
+          SnackBar(content: Text('Error generating tasks for $subCategory: $e')),
         );
       }
     }
@@ -194,7 +310,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _addComment(BuildContext context, String postId, String userId, String username) async {
+  Future<void> _addComment(
+      BuildContext context, String postId, String userId, String username) async {
     final commentController = TextEditingController();
     return showDialog(
       context: context,
@@ -224,6 +341,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     'createdAt': Timestamp.now(),
                   });
                   Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Comment added successfully')),
+                  );
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error adding comment: $e')),
@@ -268,6 +388,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildMotivationalCard(),
                     const SizedBox(height: 30),
                     _buildSectionTitle("Recommendations"),
+                    if (errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Text(
+                          errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
                     _buildSkillCategories(),
                     const SizedBox(height: 30),
                     _buildArtisticDivider(),
@@ -380,23 +508,26 @@ class _HomeScreenState extends State<HomeScreen> {
       height: 120,
       child: skillCategories.isEmpty
           ? const Center(
-              child: Text('No categories found',
-                  style: TextStyle(color: Colors.grey)))
+              child: Text(
+                'No sub-categories found',
+                style: TextStyle(color: Colors.grey),
+              ),
+            )
           : ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: skillCategories.length,
               itemBuilder: (context, index) {
                 var category = skillCategories[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: FadeInLeft(
-                    duration: const Duration(milliseconds: 500),
-                    child: GestureDetector(
-                      onTap: () => _generateFunFactAndTasks(category['name']),
-                      child: _SkillCategoryCard(category),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: FadeInLeft(
+                      duration: const Duration(milliseconds: 500),
+                      child: GestureDetector(
+                        onTap: () => _generateFunFactAndTasks(category['name']),
+                        child: _SkillCategoryCard(category),
+                      ),
                     ),
-                  ),
-                );
+                  );
               },
             ),
     );
@@ -432,7 +563,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => UserProfileScreen(userId: feed['userId']),
+                          builder: (context) =>
+                              UserProfileScreen(userId: feed['userId']),
                         ),
                       );
                     },
@@ -511,11 +643,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         .collection('likes')
                         .snapshots(),
                     builder: (context, likeSnapshot) {
-                      if (likeSnapshot.connectionState == ConnectionState.waiting) {
+                      if (likeSnapshot.connectionState ==
+                          ConnectionState.waiting) {
                         return const SizedBox.shrink();
                       }
                       final likes = likeSnapshot.data?.docs ?? [];
-                      final isLiked = user != null && likes.any((like) => like.id == user.uid);
+                      final isLiked = user != null &&
+                          likes.any((like) => like.id == user.uid);
                       final likeCount = likes.length;
 
                       return Row(
@@ -525,12 +659,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               IconButton(
                                 icon: Icon(
-                                  isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                                  isLiked
+                                      ? Icons.thumb_up
+                                      : Icons.thumb_up_outlined,
                                   color: isLiked ? Colors.blue : Colors.white,
                                 ),
                                 onPressed: user == null
                                     ? null
-                                    : () => _toggleLike(feed['id'], user.uid, isLiked),
+                                    : () =>
+                                        _toggleLike(feed['id'], user.uid, isLiked),
                               ),
                               Text(
                                 '$likeCount',
@@ -542,7 +679,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             icon: const Icon(Icons.comment, color: Colors.white),
                             onPressed: user == null
                                 ? null
-                                : () => _addComment(context, feed['id'], user.uid, username),
+                                : () => _addComment(
+                                    context, feed['id'], user.uid, username),
                           ),
                           IconButton(
                             icon: const Icon(Icons.share, color: Colors.white),
@@ -564,7 +702,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         .orderBy('createdAt', descending: true)
                         .snapshots(),
                     builder: (context, commentSnapshot) {
-                      if (commentSnapshot.connectionState == ConnectionState.waiting) {
+                      if (commentSnapshot.connectionState ==
+                          ConnectionState.waiting) {
                         return const SizedBox.shrink();
                       }
                       final comments = commentSnapshot.data?.docs ?? [];
@@ -572,10 +711,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: comments.map((comment) {
-                          final commentData = comment.data() as Map<String, dynamic>;
-                          final commentUsername = commentData['username'] ?? 'Unknown';
+                          final commentData =
+                              comment.data() as Map<String, dynamic>;
+                          final commentUsername =
+                              commentData['username'] ?? 'Unknown';
                           final commentContent = commentData['content'] ?? '';
-                          final commentTimestamp = (commentData['createdAt'] as Timestamp).toDate();
+                          final commentTimestamp =
+                              (commentData['createdAt'] as Timestamp).toDate();
                           final formattedCommentTime =
                               DateFormat('MMM d, y').format(commentTimestamp);
 
@@ -588,8 +730,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                   radius: 15,
                                   backgroundColor: Colors.blueAccent,
                                   child: Text(
-                                    commentUsername.isNotEmpty ? commentUsername[0].toUpperCase() : '',
-                                    style: const TextStyle(fontSize: 12, color: Colors.white),
+                                    commentUsername.isNotEmpty
+                                        ? commentUsername[0].toUpperCase()
+                                        : '',
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.white),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
@@ -607,7 +752,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                       Text(
                                         commentContent,
-                                        style: const TextStyle(color: Colors.white),
+                                        style:
+                                            const TextStyle(color: Colors.white),
                                       ),
                                     ],
                                   ),
@@ -663,8 +809,7 @@ class _SkillCategoryCard extends StatelessWidget {
             child: CachedNetworkImage(
               imageUrl: category['imageUrl'],
               fit: BoxFit.cover,
-              placeholder: (context, url) =>
-                  Container(color: Colors.grey.shade300),
+              placeholder: (context, url) => Container(color: Colors.grey.shade300),
               errorWidget: (context, url, error) =>
                   const Icon(Icons.error, color: Colors.red),
             ),
