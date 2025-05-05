@@ -19,6 +19,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   File? _image;
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
+  // ignore: unused_field
   double _uploadProgress = 0.0;
 
   // 🔧 Replace with your actual Cloudinary cloud name and preset
