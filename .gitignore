@@ -45,5 +45,5 @@ app.*.map.json
 /android/app/release
 
 # openai api key
-lib/constants/api_keys.dart
+# lib/constants/api_keys.dart
 
