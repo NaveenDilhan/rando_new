@@ -122,18 +122,27 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Achievements', style: TextStyle(fontWeight: FontWeight.bold)),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.purple, Colors.deepPurple],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AppBar(
+          automaticallyImplyLeading: true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color.fromARGB(255, 0, 163, 255),
+                  Color.fromARGB(255, 0, 123, 200),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
           ),
+          title: const Text('Achievements', style: TextStyle(fontWeight: FontWeight.bold)),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
         ),
-        elevation: 0,
       ),
       body: user == null
           ? Center(
@@ -200,7 +209,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
           margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Colors.purple, Colors.deepPurple],
+              colors: [Colors.blue, Colors.blueAccent],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -287,7 +296,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
               child: Row(
                 children: [
                   Lottie.asset(
-                    'assets/animations/trophy.json',
+                    'assets/animations/achievement.json',
                     width: 30,
                     height: 30,
                   ),
@@ -297,7 +306,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
+                      color: Colors.blueAccent,
                     ),
                   ),
                 ],
@@ -345,7 +354,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         gradient: const RadialGradient(
-                                          colors: [Colors.purpleAccent, Colors.transparent],
+                                          colors: [Colors.blueAccent, Colors.transparent],
                                         ),
                                       ),
                                     ),
@@ -373,7 +382,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
                                     style: const TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
-                                      color: Color.fromARGB(221, 236, 233, 233),
+                                      color: Colors.black87,
                                     ),
                                     textAlign: TextAlign.center,
                                     maxLines: 2,
@@ -413,7 +422,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.deepPurple,
+                color: Colors.blueAccent,
               ),
               textAlign: TextAlign.center,
             ),
@@ -427,7 +436,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
-                      colors: [Colors.purpleAccent, Colors.transparent],
+                      colors: [Colors.blueAccent, Colors.transparent],
                     ),
                   ),
                 ),
@@ -465,7 +474,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
             onPressed: () => Navigator.pop(context),
             style: TextButton.styleFrom(
               foregroundColor: Colors.white,
-              backgroundColor: Colors.purple,
+              backgroundColor: Colors.blueAccent,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -512,7 +521,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
+                      color: Colors.blueAccent,
                     ),
                   ),
                 ],
@@ -564,7 +573,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> with SingleTick
                                     : index == 1
                                         ? Colors.grey
                                         : Colors.brown
-                                : Colors.purple,
+                                : Colors.blueAccent,
                             child: Text(
                               '${index + 1}',
                               style: const TextStyle(color: Colors.white),

@@ -14,7 +14,7 @@ class BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return BottomNavigationBar(
       currentIndex: selectedIndex,
-      onTap: onItemTapped,  // Handle tap on the bottom navigation bar
+      onTap: onItemTapped,  
       type: BottomNavigationBarType.fixed,
       items: const [
         BottomNavigationBarItem(
@@ -26,8 +26,8 @@ class BottomNavBar extends StatelessWidget {
           label: "Explore",
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.create),  // New icon for creating a post
-          label: "Create",  // Label for the new "Create" tab
+          icon: Icon(Icons.create),  
+          label: "Create",  
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.notifications),

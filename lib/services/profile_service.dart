@@ -22,9 +22,9 @@ class ProfileService {
 
   Future<String?> uploadImageToCloudinary(File image) async {
     try {
-      final uri = Uri.parse('https://api.cloudinary.com/v1_1/dmajyc1zr/image/upload'); // Replace 'your_cloud_name'
+      final uri = Uri.parse('https://api.cloudinary.com/v1_1/dmajyc1zr/image/upload'); 
       final request = http.MultipartRequest('POST', uri)
-        ..fields['upload_preset'] = 'flutter_preset' // Replace 'your_upload_preset'
+        ..fields['upload_preset'] = 'flutter_preset' 
         ..files.add(await http.MultipartFile.fromPath('file', image.path));
       
       final response = await request.send();

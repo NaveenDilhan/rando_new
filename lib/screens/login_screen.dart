@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'reset_password_screen.dart'; // Make sure you have this screen created
+import 'reset_password_screen.dart'; 
 import '../main.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -126,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
           isLoading
               ? const CircularProgressIndicator()
               : GestureDetector(
-                  onTap: isLoading ? null : _authenticate, // Disable during loading
+                  onTap: isLoading ? null : _authenticate, 
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     width: double.infinity,

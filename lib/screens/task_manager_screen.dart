@@ -169,9 +169,27 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
   Widget build(BuildContext context) {
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Task Manager'),
-          backgroundColor: Colors.purple,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: AppBar(
+            automaticallyImplyLeading: true,
+            flexibleSpace: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color.fromARGB(255, 0, 163, 255),
+                    Color.fromARGB(255, 0, 123, 200),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+            title: const Text('Task Manager'),
+            centerTitle: true,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+          ),
         ),
         body: const Center(child: Text('Please log in to view your tasks')),
       );
@@ -183,30 +201,48 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
         .collection('tasks');
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Task Manager'),
-        backgroundColor: Colors.purple,
-        actions: [
-          IconButton(
-            icon: Icon(sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
-            onPressed: toggleSortOrder,
-            tooltip: 'Toggle Sort Order',
-          ),
-          PopupMenuButton<String>(
-            onSelected: setSortBy,
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'createdAt', child: Text('Sort by Date')),
-              const PopupMenuItem(value: 'task', child: Text('Sort by Task Name')),
-            ],
-            tooltip: 'Sort Tasks',
-          ),
-          if (selectedTaskIds.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.delete_forever, color: Colors.red),
-              onPressed: deleteSelectedTasks,
-              tooltip: 'Delete Selected Tasks',
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AppBar(
+          automaticallyImplyLeading: true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color.fromARGB(255, 0, 163, 255),
+                  Color.fromARGB(255, 0, 123, 200),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-        ],
+          ),
+          title: const Text('Task Manager'),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: Icon(sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
+              onPressed: toggleSortOrder,
+              tooltip: 'Toggle Sort Order',
+            ),
+            PopupMenuButton<String>(
+              onSelected: setSortBy,
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'createdAt', child: Text('Sort by Date')),
+                const PopupMenuItem(value: 'task', child: Text('Sort by Task Name')),
+              ],
+              tooltip: 'Sort Tasks',
+            ),
+            if (selectedTaskIds.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.delete_forever, color: Colors.red),
+                onPressed: deleteSelectedTasks,
+                tooltip: 'Delete Selected Tasks',
+              ),
+          ],
+        ),
       ),
       body: Stack(
         children: [

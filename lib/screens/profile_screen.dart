@@ -3,11 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
 import 'task_manager_screen.dart';
-import 'habits_screen.dart';
 import 'achievements_screen.dart';
 import 'settings_screen.dart';
 import '../services/profile_service.dart';
-import 'consultant_page.dart'; 
+import 'consultant_page.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -155,12 +154,6 @@ class ProfileScreen extends StatelessWidget {
                     MaterialPageRoute(builder: (context) => const TaskManagerScreen()),
                   );
                   break;
-                case 'Habits':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => HabitsScreen()),
-                  );
-                  break;
                 case 'Achievements':
                   Navigator.push(
                     context,
@@ -178,16 +171,6 @@ class ProfileScreen extends StatelessWidget {
                       Icon(Icons.task_alt, color: Color.fromARGB(255, 224, 220, 220)),
                       SizedBox(width: 10),
                       Text('Tasks'),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: 'Habits',
-                  child: Row(
-                    children: const [
-                      Icon(Icons.list, color: Color.fromARGB(255, 224, 220, 220)),
-                      SizedBox(width: 10),
-                      Text('Habits'),
                     ],
                   ),
                 ),
@@ -223,7 +206,7 @@ class ProfileScreen extends StatelessWidget {
           );
         },
         backgroundColor: Colors.lightBlue.withOpacity(0.8),
-        mini: true, // Makes the button smaller
+        mini: true, 
         child: const Icon(Icons.question_mark, color: Colors.white),
       ),
       body: SingleChildScrollView(

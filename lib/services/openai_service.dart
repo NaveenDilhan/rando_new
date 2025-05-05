@@ -31,7 +31,7 @@ class OpenAIService {
         final data = jsonDecode(response.body);
         final content = data['choices'][0]['message']['content'];
 
-        return jsonDecode(content);  // Extracts JSON formatted response
+        return jsonDecode(content); 
       } else {
         return {"error": "OpenAI API Error: ${response.statusCode}"};
       }

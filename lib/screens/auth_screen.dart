@@ -21,8 +21,8 @@ class _AuthScreenState extends State<AuthScreen> {
           // Lottie Animation covering the whole screen
           Positioned.fill(
             child: Lottie.asset(
-              'assets/animations/login_background.json', // Path to your Lottie animation file
-              fit: BoxFit.cover, // This makes the animation cover the whole screen
+              'assets/animations/login_background.json', 
+              fit: BoxFit.cover, 
             ),
           ),
           SafeArea(
@@ -30,7 +30,7 @@ class _AuthScreenState extends State<AuthScreen> {
               padding: const EdgeInsets.all(24.0),
               child: SingleChildScrollView(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,  // Avoid expanding too much vertically
+                  mainAxisSize: MainAxisSize.min,  
                   children: [
                     Text(
                       isLogin ? 'Login' : 'Register',

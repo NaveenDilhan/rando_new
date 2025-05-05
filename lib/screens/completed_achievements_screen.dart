@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'home_screen.dart'; // Import HomeScreen which contains the feed
+import 'home_screen.dart'; 
 
 class CompletedAchievementsScreen extends StatefulWidget {
   const CompletedAchievementsScreen({super.key});
@@ -78,19 +78,28 @@ class _CompletedAchievementsScreenState extends State<CompletedAchievementsScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Completed Achievements',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.purple, Colors.deepPurple],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AppBar(
+          automaticallyImplyLeading: true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color.fromARGB(255, 0, 163, 255),
+                  Color.fromARGB(255, 0, 123, 200),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
           ),
+          title: const Text('Completed Achievements',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
         ),
-        elevation: 0,
       ),
       body: user == null
           ? Center(
@@ -107,7 +116,7 @@ class _CompletedAchievementsScreenState extends State<CompletedAchievementsScree
                     'Please sign in to view achievements',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
-                 ],
+                ],
               ),
             )
           : StreamBuilder<QuerySnapshot>(
@@ -157,7 +166,7 @@ class _CompletedAchievementsScreenState extends State<CompletedAchievementsScree
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.deepPurple,
+                                  color: Colors.blueAccent,
                                 ),
                               ),
                             ],
@@ -221,7 +230,7 @@ class _CompletedAchievementsScreenState extends State<CompletedAchievementsScree
                                                     shape: BoxShape.circle,
                                                     gradient: RadialGradient(
                                                       colors: [
-                                                        Colors.purpleAccent,
+                                                        Colors.blueAccent,
                                                         Colors.transparent
                                                       ],
                                                     ),
@@ -276,7 +285,7 @@ class _CompletedAchievementsScreenState extends State<CompletedAchievementsScree
                                                   style:
                                                       TextStyle(fontSize: 12)),
                                               style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.purple,
+                                                backgroundColor: Colors.blueAccent,
                                                 foregroundColor: Colors.white,
                                                 shape: RoundedRectangleBorder(
                                                   borderRadius:
@@ -321,7 +330,7 @@ class _CompletedAchievementsScreenState extends State<CompletedAchievementsScree
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.deepPurple,
+                color: Colors.blueAccent,
               ),
               textAlign: TextAlign.center,
             ),
@@ -335,7 +344,7 @@ class _CompletedAchievementsScreenState extends State<CompletedAchievementsScree
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
-                      colors: [Colors.purpleAccent, Colors.transparent],
+                      colors: [Colors.blueAccent, Colors.transparent],
                     ),
                   ),
                 ),
@@ -372,7 +381,7 @@ class _CompletedAchievementsScreenState extends State<CompletedAchievementsScree
               icon: const Icon(Icons.share),
               label: const Text('Share to Feed'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.blueAccent,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -386,7 +395,7 @@ class _CompletedAchievementsScreenState extends State<CompletedAchievementsScree
             onPressed: () => Navigator.pop(context),
             style: TextButton.styleFrom(
               foregroundColor: Colors.white,
-              backgroundColor: Colors.purple,
+              backgroundColor: Colors.blueAccent,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),

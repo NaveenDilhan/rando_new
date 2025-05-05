@@ -4,10 +4,10 @@ class ThemeNotifier extends ValueNotifier<ThemeData> {
   static final ThemeNotifier _instance = ThemeNotifier._internal();
   factory ThemeNotifier() => _instance;
 
-  ThemeNotifier._internal() : super(ThemeData.dark()); // Default to dark theme
+  ThemeNotifier._internal() : super(ThemeData.dark()); 
 
-  bool _isDarkMode = true; // Track the current theme mode
-  double _fontSize = 16.0; // Default font size
+  bool _isDarkMode = true; 
+  double _fontSize = 16.0; 
 
   // Public getter for font size
   double get fontSize => _fontSize;
@@ -22,16 +22,16 @@ class ThemeNotifier extends ValueNotifier<ThemeData> {
             textTheme: TextTheme(
               bodyLarge: TextStyle(fontSize: _fontSize, color: Colors.white),
               bodyMedium: TextStyle(fontSize: _fontSize, color: Colors.white),
-              displayLarge: TextStyle(fontSize: _fontSize + 4, color: Colors.white), // Example for larger text
-              // Add more styles as needed
+              displayLarge: TextStyle(fontSize: _fontSize + 4, color: Colors.white), 
+              
             ),
           )
         : ThemeData.light().copyWith(
             textTheme: TextTheme(
               bodyLarge: TextStyle(fontSize: _fontSize, color: Colors.black),
               bodyMedium: TextStyle(fontSize: _fontSize, color: Colors.black),
-              displayLarge: TextStyle(fontSize: _fontSize + 4, color: Colors.black), // Example for larger text
-              // Add more styles as needed
+              displayLarge: TextStyle(fontSize: _fontSize + 4, color: Colors.black), 
+              
             ),
           );
   }
@@ -39,14 +39,14 @@ class ThemeNotifier extends ValueNotifier<ThemeData> {
   // Toggle theme between dark and light
   void toggleTheme(bool isDark) {
     _isDarkMode = isDark;
-    value = currentTheme; // Update the theme value
-    notifyListeners(); // Notify listeners to rebuild the UI
+    value = currentTheme; 
+    notifyListeners(); 
   }
 
   // Set font size and update the theme
   void setFontSize(double fontSize) {
     _fontSize = fontSize;
-    value = currentTheme; // Update the theme value
-    notifyListeners(); // Notify listeners to rebuild the UI
+    value = currentTheme; 
+    notifyListeners(); 
   }
 }

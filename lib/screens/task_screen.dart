@@ -104,7 +104,28 @@ class _TaskScreenState extends State<TaskScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("${widget.category} Tasks")),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AppBar(
+          automaticallyImplyLeading: true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color.fromARGB(255, 0, 163, 255),
+                  Color.fromARGB(255, 0, 123, 200),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          title: Text("${widget.category} Tasks"),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+      ),
       body: Stack(
         children: [
           FutureBuilder<Map<String, dynamic>>(
@@ -193,7 +214,7 @@ class _TaskScreenState extends State<TaskScreen> {
                           onPressed: () => followTasks(tasks),
                           icon: const Icon(Icons.favorite),
                           label: const Text("Follow"),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
                         ),
                       ],
                     ),

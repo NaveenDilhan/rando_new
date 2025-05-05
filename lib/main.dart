@@ -9,7 +9,7 @@ import 'screens/explore_screen.dart';
 import 'screens/notification_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/auth_screen.dart';
-import 'screens/create_post_screen.dart';  // Import the Create Post Screen
+import 'screens/create_post_screen.dart';  
 import 'widgets/bottom_nav.dart';
 import 'firebase_options.dart';
 import 'theme_notifier.dart';
@@ -156,7 +156,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_selectedIndex], // Content of the selected tab
+      body: _pages[_selectedIndex], 
       bottomNavigationBar: BottomNavBar(
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,

@@ -122,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      print('User interests: $userInterests'); // Debug: Log user interests
+      print('User interests: $userInterests'); 
 
       List<Map<String, dynamic>> tempCategories = [];
       
@@ -141,13 +141,13 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      print('Found ${categorySnapshot.docs.length} matching categories'); // Debug: Log number of categories
+      print('Found ${categorySnapshot.docs.length} matching categories'); 
 
       // Iterate through each matching category to fetch its sub-categories
       for (var doc in categorySnapshot.docs) {
         String categoryName = doc['name'] ?? 'Unknown';
         String categoryId = doc.id;
-        print('Processing category: $categoryName (ID: $categoryId)'); // Debug: Log category details
+        print('Processing category: $categoryName (ID: $categoryId)'); 
 
         QuerySnapshot subCategoriesSnapshot = await FirebaseFirestore.instance
             .collection('categories')
@@ -156,24 +156,24 @@ class _HomeScreenState extends State<HomeScreen> {
             .get();
 
         if (subCategoriesSnapshot.docs.isEmpty) {
-          print('No sub-categories found for category: $categoryName'); // Debug: Log empty sub-categories
+          print('No sub-categories found for category: $categoryName'); 
           if (mounted) {
             setState(() {
               errorMessage = 'No sub-categories found for category: $categoryName';
             });
           }
-          // Add a fallback sub-category to avoid empty states
+          
           tempCategories.add({
             'name': '$categoryName (General)',
-            'imageUrl': 'https://via.placeholder.com/150', // Fallback image
+            'imageUrl': 'https://via.placeholder.com/150', 
             'parentCategory': categoryName,
           });
           continue;
         }
 
-        print('Found ${subCategoriesSnapshot.docs.length} sub-categories for $categoryName'); // Debug: Log sub-category count
+        print('Found ${subCategoriesSnapshot.docs.length} sub-categories for $categoryName'); 
         for (var subDoc in subCategoriesSnapshot.docs) {
-          print('Sub-category: ${subDoc['name']}'); // Debug: Log each sub-category
+          print('Sub-category: ${subDoc['name']}'); 
         }
 
         tempCategories.addAll(subCategoriesSnapshot.docs.map((subDoc) {
@@ -194,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      print('Error fetching skill categories: $e'); // Debug: Log error
+      print('Error fetching skill categories: $e'); 
       if (mounted) {
         setState(() {
           errorMessage = 'Error fetching skill categories: $e';
@@ -411,14 +411,36 @@ class _HomeScreenState extends State<HomeScreen> {
 
   AppBar _buildAppBar() {
     return AppBar(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.transparent,
       elevation: 0,
-      title: const Text(
-        "Rando",
-        style: TextStyle(
-          color: Color.fromARGB(255, 0, 163, 255),
-          fontSize: 26,
-          fontWeight: FontWeight.bold,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.black, Color(0xFF1E1E1E)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black54,
+              blurRadius: 8,
+              spreadRadius: 2,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+      ),
+      title: FadeIn(
+        duration: const Duration(milliseconds: 800),
+        child: const Text(
+          "Rando",
+          style: TextStyle(
+            color: Color.fromARGB(255, 0, 163, 255),
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
+            fontFamily: 'Roboto', 
+          ),
         ),
       ),
     );

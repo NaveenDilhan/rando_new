@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'interest_selection_screen.dart'; // Import the Interest Selection screen
+import 'interest_selection_screen.dart'; 
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -99,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Form(
       key: _formKey,
-      child: SingleChildScrollView(  // To avoid overflow on small screens
+      child: SingleChildScrollView(  
         padding: EdgeInsets.all(16),
         child: Column(
           children: [

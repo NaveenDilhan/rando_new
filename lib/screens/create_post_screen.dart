@@ -1,12 +1,12 @@
 import 'dart:io';
-import 'dart:convert'; // For jsonDecode
+import 'dart:convert'; 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:http/http.dart' as http; // For Cloudinary upload
-import 'completed_achievements_screen.dart'; // Your achievements screen
+import 'package:http/http.dart' as http; 
+import 'completed_achievements_screen.dart'; 
 
 class CreatePostScreen extends StatefulWidget {
   @override
@@ -22,8 +22,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   // ignore: unused_field
   double _uploadProgress = 0.0;
 
-  // 🔧 Replace with your actual Cloudinary cloud name and preset
-  final String cloudinaryCloudName = 'dmajyc1zr'; // e.g. 'd123abc45'
+ 
+  final String cloudinaryCloudName = 'dmajyc1zr'; 
   final String cloudinaryUploadPreset = 'flutter_preset'; 
 
   Future<bool> _requestPermissions() async {
@@ -86,7 +86,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  // 🔄 Replacing Firebase Storage with Cloudinary upload
+ 
   Future<String?> _uploadImageToCloudinary(File imageFile) async {
     try {
       final uri = Uri.parse('https://api.cloudinary.com/v1_1/$cloudinaryCloudName/image/upload');
@@ -183,24 +183,56 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Create Post"),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AppBar(
+          automaticallyImplyLeading: true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color.fromARGB(255, 0, 163, 255),
+                  Color.fromARGB(255, 0, 123, 200),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          title: const Text("Create Post"),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Create a New Post", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(
+              "Create a New Post",
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 20),
             TextField(
               controller: _titleController,
-              decoration: InputDecoration(labelText: "Post Title"),
+              decoration: InputDecoration(
+                labelText: "Post Title",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+              ),
             ),
             SizedBox(height: 20),
             TextField(
               controller: _contentController,
-              decoration: InputDecoration(labelText: "What's happening?"),
+              decoration: InputDecoration(
+                labelText: "What's happening?",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+              ),
               maxLines: 5,
             ),
             SizedBox(height: 20),
